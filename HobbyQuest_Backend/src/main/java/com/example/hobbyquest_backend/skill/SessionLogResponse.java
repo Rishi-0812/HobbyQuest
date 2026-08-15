@@ -1,6 +1,9 @@
 package com.example.hobbyquest_backend.skill;
 
+import com.example.hobbyquest_backend.project.XpBreakdownItem;
 import lombok.*;
+
+import java.util.List;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class SessionLogResponse {
@@ -27,4 +30,6 @@ public class SessionLogResponse {
     private int     totalSkills;
     private long    daysTaken;
     private String  newSkillStatus;
+    private List<XpBreakdownItem> xpBreakdown;
+    private Boolean roadmapJustCompleted;
 }

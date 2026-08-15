@@ -11,21 +11,31 @@ public class XPService {
 
     private final UserRepository userRepository;
 
-    // XP thresholds per level — index = level - 1
     private static final int[] LEVEL_XP = {
             0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200
     };
 
     public static final int STREAK_7_BONUS  = 100;
     public static final int STREAK_30_BONUS = 500;
-    public static final int LEVEL_COMPLETE  = 200;
-    public static final int SKILL_COMPLETE  = 50;
 
-    /**
-     * Add XP to a user, recalculate level, save, and return result.
-     * Call this once per event — don't call it multiple times per session log.
-     * The caller aggregates total XP to add and calls this once.
-     */
+    // Deprecated flat constants — no longer used by SkillService, which now
+    // reads skill.getXpReward() (level-scaled) and a per-level bonus map
+    // instead. Left in place only in case other code still references them.
+    @Deprecated public static final int LEVEL_COMPLETE = 200;
+    @Deprecated public static final int SKILL_COMPLETE  = 50;
+
+    public static final int ROADMAP_COMPLETE_BONUS = 500;
+
+    public static int levelCompletionBonus(String levelStage) {
+        return switch (levelStage) {
+            case "Basic" -> 100;
+            case "Intermediate" -> 200;
+            case "Advanced" -> 300;
+            case "Mastery" -> 400;
+            default -> 100;
+        };
+    }
+
     public XPResult addXP(User user, int amount) {
         int oldLevel = user.getLevel();
         int newXp    = user.getXp() + amount;

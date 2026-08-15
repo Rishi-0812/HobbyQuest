@@ -2,6 +2,7 @@ package com.example.hobbyquest_backend.skill;
 
 import com.example.hobbyquest_backend.progress.UserSkillProgress;
 import com.example.hobbyquest_backend.progress.UserSkillProgressRepository;
+import com.example.hobbyquest_backend.project.XpBreakdownItem;
 import com.example.hobbyquest_backend.session.*;
 import com.example.hobbyquest_backend.user.User;
 import com.example.hobbyquest_backend.user.UserRepository;
@@ -28,7 +29,7 @@ public class SkillService {
     private final StreakService                streakService;
     private final UserRepository               userRepository;
 
-    private static final int DAILY_XP_CAP_PER_SKILL = 60;
+    private static final int DAILY_XP_CAP_PER_SKILL = 90; // was 60
     private static final int COOLDOWN_MINUTES        = 10;
 
     // ─── Roadmap ─────────────────────────────────────────────────────────────
@@ -172,68 +173,59 @@ public class SkillService {
 
     // Log session ──────────────────────────────────────────────────────────
 
+
+// ...
+
     @Transactional
     public SessionLogResponse logSession(Long skillId, Long userId, User user,
                                          String vibe, String note) {
         Skill skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new RuntimeException("Skill not found"));
 
-        // ── Cooldown check ────────────────────────────────────────────────
         LocalDateTime cooldownCutoff = LocalDateTime.now().minusMinutes(COOLDOWN_MINUTES);
-        boolean onCooldown = sessionLogRepository
-                .existsRecentSession(userId, skillId, cooldownCutoff);
+        boolean onCooldown = sessionLogRepository.existsRecentSession(userId, skillId, cooldownCutoff);
         if (onCooldown) {
             throw new RuntimeException("Please wait 10 minutes before logging another session for this skill");
         }
 
-        // ── XP calculation ────────────────────────────────────────────────
+        List<XpBreakdownItem> breakdown = new ArrayList<>();
+        List<String> highlightLabels = new ArrayList<>();
+
         LocalDateTime startOfDay = LocalDate.now().atTime(LocalTime.MIDNIGHT);
-        int sessionXp = "NAILED_IT".equals(vibe) ? 20 : 15;
-        boolean isFirstSessionToday = !sessionLogRepository
-                .hasSessionTodayAnySkill(userId, startOfDay);
+        int sessionXp = vibeToXp(vibe);
+        boolean isFirstSessionToday = !sessionLogRepository.hasSessionTodayAnySkill(userId, startOfDay);
         int dailyBonus = isFirstSessionToday ? 30 : 0;
 
-        int xpEarnedTodayForSkill = sessionLogRepository
-                .sumXpEarnedTodayForSkill(userId, skillId, startOfDay);
+        int xpEarnedTodayForSkill = sessionLogRepository.sumXpEarnedTodayForSkill(userId, skillId, startOfDay);
         int cappedSessionTotal = sessionXp + dailyBonus;
 
-        if (xpEarnedTodayForSkill >= DAILY_XP_CAP_PER_SKILL
-                || xpEarnedTodayForSkill + cappedSessionTotal > DAILY_XP_CAP_PER_SKILL) {
-            sessionXp = 0;
-            dailyBonus = 0;
-            cappedSessionTotal = 0;
+        if (xpEarnedTodayForSkill >= DAILY_XP_CAP_PER_SKILL) {
+            sessionXp = 0; dailyBonus = 0; cappedSessionTotal = 0;
+        } else if (xpEarnedTodayForSkill + cappedSessionTotal > DAILY_XP_CAP_PER_SKILL) {
+            int awardable = DAILY_XP_CAP_PER_SKILL - xpEarnedTodayForSkill;
+            dailyBonus = Math.min(dailyBonus, awardable);
+            sessionXp = Math.max(0, awardable - dailyBonus);
+            cappedSessionTotal = sessionXp + dailyBonus;
         }
+
+        if (sessionXp > 0) breakdown.add(new XpBreakdownItem(vibeLabel(vibe), sessionXp));
+        if (dailyBonus > 0) breakdown.add(new XpBreakdownItem("Daily bonus", dailyBonus));
 
         int totalXpToAdd = cappedSessionTotal;
 
-        // ── Save session log ──────────────────────────────────────────────
-        SessionLog log = SessionLog.builder()
-                .userId(userId)
-                .skillId(skillId)
-                .vibe(vibe)
-                .note(note)
-                .xpEarned(cappedSessionTotal)
-                .build();
-        sessionLogRepository.save(log);
-
-        // ── Update skill progress ─────────────────────────────────────────
         UserSkillProgress prog = progressRepository
                 .findByUserIdAndSkillId(userId, skillId)
                 .orElseGet(() -> UserSkillProgress.builder()
-                        .userId(userId)
-                        .skillId(skillId)
-                        .hobbyId(skill.getHobbyId())
+                        .userId(userId).skillId(skillId).hobbyId(skill.getHobbyId())
                         .firstAttemptedAt(LocalDateTime.now())
                         .build());
 
         prog.setAttemptCount(prog.getAttemptCount() + 1);
 
-        // Auto-transition: AVAILABLE → LEARNING on first session
         if (prog.getStatus() == null || "AVAILABLE".equals(prog.getStatus())) {
             prog.setStatus("LEARNING");
         }
 
-        // Auto-complete: ALMOST_THERE + NAILED_IT → COMPLETED
         boolean skillJustCompleted = false;
         int completionBonus = 0;
 
@@ -241,44 +233,57 @@ public class SkillService {
             prog.setStatus("COMPLETED");
             prog.setCompletedAt(LocalDateTime.now());
             skillJustCompleted = true;
-            completionBonus = XPService.SKILL_COMPLETE;
+            completionBonus = skill.getXpReward();
             totalXpToAdd += completionBonus;
+            breakdown.add(new XpBreakdownItem("Skill complete", completionBonus));
+            highlightLabels.add("Skill complete");
         }
 
         progressRepository.save(prog);
 
-        // ── Check level completion ────────────────────────────────────────
         boolean levelJustCompleted = false;
+        boolean roadmapJustCompleted = false;
         int levelBonus = 0;
+        int roadmapBonus = 0;
         String completedLevel = null;
         int totalSkills = 0;
         long daysTaken = 0;
 
         if (skillJustCompleted) {
             List<Skill> levelSkills = skillRepository
-                    .findByHobbyIdAndLevelStageOrderByOrderIndexAsc(
-                            skill.getHobbyId(), skill.getLevelStage());
-            totalSkills = skillRepository
-                    .findByHobbyIdOrderByLevelStageAscOrderIndexAsc(skill.getHobbyId())
-                    .size();
-            List<UserSkillProgress> levelProgress = progressRepository
-                    .findByUserIdAndHobbyId(userId, skill.getHobbyId());
-            Map<Long, String> statusMap = levelProgress.stream()
-                    .collect(Collectors.toMap(
-                            UserSkillProgress::getSkillId,
-                            UserSkillProgress::getStatus));
+                    .findByHobbyIdAndLevelStageOrderByOrderIndexAsc(skill.getHobbyId(), skill.getLevelStage());
+            List<Skill> allHobbySkills = skillRepository
+                    .findByHobbyIdOrderByLevelStageAscOrderIndexAsc(skill.getHobbyId());
+            totalSkills = allHobbySkills.size();
 
-            boolean allDone = levelSkills.stream()
+            List<UserSkillProgress> hobbyProgress = progressRepository.findByUserIdAndHobbyId(userId, skill.getHobbyId());
+            Map<Long, String> statusMap = hobbyProgress.stream()
+                    .collect(Collectors.toMap(UserSkillProgress::getSkillId, UserSkillProgress::getStatus));
+
+            boolean levelAllDone = levelSkills.stream()
                     .allMatch(s -> "COMPLETED".equals(statusMap.get(s.getId())));
-            if (allDone) {
+
+            if (levelAllDone) {
                 levelJustCompleted = true;
                 completedLevel = skill.getLevelStage();
-                levelBonus = XPService.LEVEL_COMPLETE;
+                levelBonus = XPService.levelCompletionBonus(completedLevel);
                 totalXpToAdd += levelBonus;
+                breakdown.add(new XpBreakdownItem(completedLevel + " level complete", levelBonus));
+                highlightLabels.add(completedLevel + " level complete");
+
+                long completedCount = allHobbySkills.stream()
+                        .filter(s -> "COMPLETED".equals(statusMap.get(s.getId())))
+                        .count();
+                if (completedCount == totalSkills) {
+                    roadmapJustCompleted = true;
+                    roadmapBonus = XPService.ROADMAP_COMPLETE_BONUS;
+                    totalXpToAdd += roadmapBonus;
+                    breakdown.add(new XpBreakdownItem("Roadmap complete", roadmapBonus));
+                    highlightLabels.add("Roadmap complete");
+                }
             }
 
-
-            daysTaken = levelProgress.stream()
+            daysTaken = hobbyProgress.stream()
                     .map(UserSkillProgress::getFirstAttemptedAt)
                     .filter(Objects::nonNull)
                     .min(LocalDateTime::compareTo)
@@ -286,14 +291,29 @@ public class SkillService {
                     .orElse(1L);
         }
 
-        // ── Award XP and update streak ────────────────────────────────────
-        XPResult xpResult     = xpService.addXP(user, totalXpToAdd);
-        StreakResult streak    = streakService.updateStreak(user);
+        XPResult xpResult = xpService.addXP(user, totalXpToAdd);
+        StreakResult streak = streakService.updateStreak(user);
 
-        // Add streak bonus XP if milestone hit
         if (streak.getStreakBonusXp() > 0) {
             xpResult = xpService.addXP(user, streak.getStreakBonusXp());
+            breakdown.add(new XpBreakdownItem("Streak bonus", streak.getStreakBonusXp()));
+            highlightLabels.add("Streak bonus");
         }
+
+        // Saved at the end, now that the full picture is known — xpEarned keeps
+        // its original meaning (capped vibe+bonus, used for cap-sum queries),
+        // bonusXp captures everything else, highlights is a short display label.
+        int bonusXpTotal = completionBonus + levelBonus + roadmapBonus + streak.getStreakBonusXp();
+        SessionLog log = SessionLog.builder()
+                .userId(userId)
+                .skillId(skillId)
+                .vibe(vibe)
+                .note(note)
+                .xpEarned(cappedSessionTotal)
+                .bonusXp(bonusXpTotal)
+                .highlights(highlightLabels.isEmpty() ? null : String.join(", ", highlightLabels))
+                .build();
+        sessionLogRepository.save(log);
 
         return SessionLogResponse.builder()
                 .sessionXp(sessionXp)
@@ -308,11 +328,29 @@ public class SkillService {
                 .currentStreak(streak.getCurrentStreak())
                 .skillJustCompleted(skillJustCompleted)
                 .levelJustCompleted(levelJustCompleted)
+                .roadmapJustCompleted(roadmapJustCompleted)
                 .completedLevel(completedLevel)
                 .totalSkills(totalSkills)
                 .daysTaken(daysTaken)
                 .newSkillStatus(prog.getStatus())
+                .xpBreakdown(breakdown)
                 .build();
+    }
+
+    private int vibeToXp(String vibe) {
+        return switch (vibe) {
+            case "NAILED_IT" -> 40;
+            case "GETTING_THE_HANG_OF_IT" -> 30;
+            default -> 20; // STRUGGLING
+        };
+    }
+
+    private String vibeLabel(String vibe) {
+        return switch (vibe) {
+            case "NAILED_IT" -> "Nailed it";
+            case "GETTING_THE_HANG_OF_IT" -> "Making progress";
+            default -> "Struggled";
+        };
     }
 
     // ─── Status upgrade (LEARNING → ALMOST_THERE, manual) ────────────────────

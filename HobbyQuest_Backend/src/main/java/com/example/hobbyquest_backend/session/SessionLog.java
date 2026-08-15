@@ -42,4 +42,11 @@ public class SessionLog {
     @Column(name = "logged_at")
     @Builder.Default
     private LocalDateTime loggedAt = LocalDateTime.now();
+
+    @Column(name = "bonus_xp")
+    @Builder.Default
+    private Integer bonusXp = 0;
+
+    @Column(columnDefinition = "TEXT")
+    private String highlights;
 }

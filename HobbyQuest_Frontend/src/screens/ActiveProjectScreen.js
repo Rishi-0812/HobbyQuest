@@ -26,6 +26,11 @@ const VIBE_EMOJI = {
   STRUGGLING: '😤',
 };
 
+const VIBE_CFG = {
+  NAILED_IT:              { emoji: '🎯', label: 'Nailed it',     color: C.teal,        border: C.teal },
+  GETTING_THE_HANG_OF_IT: { emoji: '🙂', label: 'Making progress', color: '#E67E22',     border: '#E67E22' },
+  STRUGGLING:             { emoji: '😤', label: 'Struggled',     color: C.admin,       border: C.admin },
+};
 function formatTime(ms) {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -34,14 +39,20 @@ function formatTime(ms) {
 }
 
 function SessionRow({ session }) {
+  const cfg = VIBE_CFG[session.vibe] || VIBE_CFG.STRUGGLING;
+  const total = (session.xpEarned || 0) + (session.bonusXp || 0);
   return (
-    <View style={s.sessionRow}>
-      <Text style={s.sessionEmoji}>{VIBE_EMOJI[session.vibe] || '✨'}</Text>
-      <View style={layout.fill}>
-        <Text style={s.sessionTitle}>{VIBE_LABEL[session.vibe] || session.vibe}</Text>
-        {session.note ? <Text style={s.sessionNote} numberOfLines={2}>{session.note}</Text> : null}
+    <View style={[sr.row, { borderLeftColor: cfg.border }]}>
+      <Text style={sr.emoji}>{cfg.emoji}</Text>
+      <View style={sr.info}>
+        <Text style={[sr.vibe, { color: cfg.color }]}>{cfg.label}</Text>
+        {session.note ? <Text style={sr.note}>{session.note}</Text> : <Text style={sr.noNote}>no note</Text>}
+        {session.highlights ? <Text style={sr.highlights}>🎉 {session.highlights}</Text> : null}
       </View>
-      <Text style={s.sessionXp}>+{session.xpEarned || 0} XP</Text>
+      <View style={sr.right}>
+        <Text style={sr.date}>{dayLabel(session.loggedAt)}</Text>
+        {total > 0 && <Text style={sr.xp}>+{total} XP</Text>}
+      </View>
     </View>
   );
 }
@@ -120,10 +131,10 @@ export default function ActiveProjectScreen({ route, navigation }) {
           visible={!!xpResult}
           xpEarned={xpResult?.totalXpEarned}
           accentColor={C.passion}
-          lines={xpResult ? [
-            ...(xpResult.unitsAppliedThisSession > 0 ? [{ emoji: '✍️', text: `+${xpResult.unitsAppliedThisSession} ${unitLabel}${xpResult.unitsAppliedThisSession === 1 ? '' : 's'} completed` }] : []),
-            ...(xpResult.projectJustCompleted ? [{ emoji: '🏆', text: `Project Complete! +${xpResult.completionBonus || 100} bonus` }] : []),
-          ] : []}
+          lines={(xpResult?.xpBreakdown || []).map(item => ({
+            emoji: iconForLabel(item.label),
+            text: `${item.label} +${item.amount}`,
+          }))}
           onDismiss={() => setXpResult(null)}
         />
       )}
@@ -247,10 +258,9 @@ export default function ActiveProjectScreen({ route, navigation }) {
                 hobbyId: params.hobbyId,
                 hobbyName: params.hobbyName,
               });
-            }, 2200);
-          } else {
-            setTimeout(() => setXpResult(null), 2200);
+            }, 3200); // gives the popup a moment to actually be read before navigating away
           }
+          // No auto-dismiss otherwise — CelebrationPopup only closes on tap / "Nice!" now.
         }}
       />
     </SafeAreaView>
@@ -298,6 +308,7 @@ const s = StyleSheet.create({
   emptyText: { color: C.onSurfaceVariant, textAlign: 'center', fontSize: F.base },
   abandonWrap: { padding: 12, alignItems: 'center' },
   abandonText: { color: C.onSurfaceVariant, fontSize: F.sm, textDecorationLine: 'underline' },
+  highlights: { fontSize: F.xs, color: C.teal, marginTop: 3, fontWeight: '600' }
 });
 
 const xpb = StyleSheet.create({

@@ -28,63 +28,59 @@ public class GeminiService {
 
     public String generateRoadmap(String hobbyName, String difficulty, String extraGuidance) {
         String prompt = """
-                Generate a structured hobby roadmap for "%s" (%s difficulty).
-                Return ONLY valid JSON with this exact shape:
+            Generate a structured hobby roadmap for "%s" (%s difficulty).
+            Return ONLY valid JSON with this exact shape:
+            {
+              "hobbyDescription": "string",
+              "tags": ["string", "string"],
+              "levels": [
                 {
-                  "emoji": "single emoji that best represents this hobby",
-                  "hobbyDescription": "string",
-                  "tags": ["string", "string"],
-                  "levels": [
+                  "levelStage": "Basic",
+                  "skills": [
                     {
-                      "levelStage": "Basic",
-                      "skills": [
-                        {
-                          "name": "string",
-                          "description": "string",
-                          "tip": "string",
-                          "struggledTip": "string",
-                          "xpReward": 50,
-                          "orderIndex": 1
-                        }
-                      ]
+                      "name": "string",
+                      "description": "string",
+                      "tip": "string",
+                      "struggledTip": "string",
+                      "orderIndex": 1
                     }
                   ]
                 }
-                levels must contain exactly 4 entries in this order:
-                Basic (5 skills), Intermediate (5 skills), Advanced (4 skills), Mastery (3 skills).
-                Do not include markdown code fences.
-                Extra guidance: %s
-                """.formatted(
-                hobbyName,
-                difficulty == null || difficulty.isBlank() ? "Beginner" : difficulty,
-                extraGuidance == null ? "" : extraGuidance
-        );
-
+              ]
+            }
+            Do NOT include an xpReward field for any skill — XP values are assigned
+            entirely by the backend based on level stage, never by you.
+            levels must contain exactly 4 entries in this order:
+            Basic (5 skills), Intermediate (5 skills), Advanced (4 skills), Mastery (3 skills).
+            Do not include markdown code fences.
+            Extra guidance: %s
+            """.formatted(hobbyName, difficulty == null || difficulty.isBlank() ? "Beginner" : difficulty,
+                extraGuidance == null ? "" : extraGuidance);
         return callGeminiAndValidateJson(prompt);
     }
 
     public String generateProject(String hobbyName, String concept, Integer targetCount, String unitLabel) {
+        int[] range = com.example.hobbyquest_backend.project.XpTiers.validRangeForTargetCount(targetCount);
         String prompt = """
-                Generate a passion project for hobby "%s".
-                Concept: %s
-                Target count: %d
-                Unit label: %s
-                Return ONLY valid JSON with this exact shape:
-                {
-                  "description": "string",
-                  "units": [
-                    { "unitNumber": 1, "name": "string or null", "creativePrompt": "string" }
-                  ]
-                }
-                It is okay to return only a partial units list (do NOT force all unit numbers up to target).
-                Do not include markdown code fences.
-                """.formatted(
-                hobbyName,
-                concept == null ? "" : concept,
-                targetCount == null ? 1 : targetCount,
-                unitLabel == null ? "unit" : unitLabel
-        );
-
+            Generate a passion project for hobby "%s".
+            Concept: %s
+            Target count: %d
+            Unit label: %s
+            Return ONLY valid JSON with this exact shape:
+            {
+              "description": "string",
+              "suggestedUnitXp": <integer between %d and %d>,
+              "units": [
+                { "unitNumber": 1, "name": "string or null", "creativePrompt": "string" }
+              ]
+            }
+            For suggestedUnitXp: choose a value ONLY within the range %d-%d (inclusive),
+            based on how difficult or time-consuming one unit is. Do not choose a value
+            outside this range under any circumstances — it will be rejected and clamped.
+            It is okay to return only a partial units list (do NOT force all unit numbers up to target).
+            Do not include markdown code fences.
+            """.formatted(hobbyName, concept == null ? "" : concept, targetCount == null ? 1 : targetCount,
+                unitLabel == null ? "unit" : unitLabel, range[0], range[1], range[0], range[1]);
         return callGeminiAndValidateJson(prompt);
     }
 

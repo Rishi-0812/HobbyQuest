@@ -169,6 +169,9 @@ export default function VibePickerModal({
                 );
               })}
             </View>
+            <Text style={s.capNote}>
+                      Base XP shown — your session may earn less if you're close to today's XP cap for this {progressId ? 'project' : 'skill'}.
+            </Text>
 
             {progressId && maxUnits > 0 && (
               <>
@@ -311,6 +314,7 @@ const s = StyleSheet.create({
   logBtnText:  { color: C.white, fontSize: F.md, fontWeight: '700' },
   cancelBtn:   { alignItems: 'center', paddingVertical: 8 },
   cancelText:  { fontSize: F.base, color: C.onSurfaceVariant, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
+  capNote: { fontSize: F.xs, color: C.onSurfaceVariant, marginBottom: 16, fontStyle: 'italic' }
 });
 
 const localStyles = StyleSheet.create({

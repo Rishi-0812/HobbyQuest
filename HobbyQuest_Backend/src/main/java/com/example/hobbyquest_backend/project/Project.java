@@ -46,4 +46,11 @@ public class Project {
 
     @Column(name = "duration_days")
     private Integer durationDays; // nullable: NULL = untimed
+
+    @Column(name = "unit_xp")
+    private Integer unitXp;
+
+    @Column(name = "completion_bonus_xp")
+    @Builder.Default
+    private Integer completionBonusXp = 300;
 }

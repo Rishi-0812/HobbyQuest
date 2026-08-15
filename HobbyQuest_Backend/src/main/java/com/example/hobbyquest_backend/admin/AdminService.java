@@ -84,10 +84,14 @@ public class AdminService {
 
     public GenerateContentResponse generateProject(GenerateProjectRequest req) {
         if (req.getTargetHobbyId() == null) throw new IllegalArgumentException("Target hobby is required.");
-        if (req.getConcept() == null || req.getConcept().isBlank()) throw new IllegalArgumentException("Project concept is required.");
-        if (req.getTargetCount() == null || req.getTargetCount() < 1) throw new IllegalArgumentException("Target count must be at least 1.");
-        if (req.getUnitLabel() == null || req.getUnitLabel().isBlank()) throw new IllegalArgumentException("Unit label is required.");
-        if (req.getDurationDays() != null && req.getDurationDays() < 1) throw new IllegalArgumentException("Duration days must be a positive integer.");
+        if (req.getConcept() == null || req.getConcept().isBlank())
+            throw new IllegalArgumentException("Project concept is required.");
+        if (req.getTargetCount() == null || req.getTargetCount() < 1)
+            throw new IllegalArgumentException("Target count must be at least 1.");
+        if (req.getUnitLabel() == null || req.getUnitLabel().isBlank())
+            throw new IllegalArgumentException("Unit label is required.");
+        if (req.getDurationDays() != null && req.getDurationDays() < 1)
+            throw new IllegalArgumentException("Duration days must be a positive integer.");
 
         Hobby targetHobby = hobbyRepository.findById(req.getTargetHobbyId())
                 .orElseThrow(() -> new NoSuchElementException("Target hobby not found."));
@@ -252,8 +256,9 @@ public class AdminService {
 
                 int index = 1;
                 for (JsonNode skillNode : levelSkills) {
+                    // in publishRoadmap(), replace the xpReward line inside the skill-building loop:
                     int orderIndex = skillNode.path("orderIndex").asInt(index);
-                    int xpReward = skillNode.path("xpReward").asInt(50);
+                    int xpReward = xpForLevelStage(levelStage); // NEVER read from skillNode anymore
                     skills.add(Skill.builder()
                             .hobbyId(hobby.getId())
                             .name(textValue(skillNode, "name"))
@@ -264,6 +269,7 @@ public class AdminService {
                             .orderIndex(orderIndex)
                             .xpReward(xpReward)
                             .build());
+
                     index++;
                 }
             }
@@ -306,6 +312,12 @@ public class AdminService {
             if (row.getTargetHobbyId() == null) {
                 throw new IllegalArgumentException("Project generation is missing target hobby.");
             }
+// in publishProject(), after resolving targetCount, add validated unit_xp:
+            Integer suggestedUnitXp = intValueNullable(root, "suggestedUnitXp");
+            int[] range = com.example.hobbyquest_backend.project.XpTiers.validRangeForTargetCount(targetCount);
+            int unitXp = suggestedUnitXp != null
+                    ? com.example.hobbyquest_backend.project.XpTiers.clamp(suggestedUnitXp, range[0], range[1])
+                    : (range[0] + range[1]) / 2; // fallback if Gemini omitted it entirely
 
             Project project = projectRepository.save(Project.builder()
                     .hobbyId(row.getTargetHobbyId())
@@ -318,6 +330,8 @@ public class AdminService {
                     .isPublic(true)
                     .createdBy(adminUserId)
                     .durationDays(durationDays)
+                    .unitXp(unitXp)                  // NEW
+                    .completionBonusXp(300)          // NEW — flat per spec, all sources
                     .build());
 
             JsonNode units = root.path("units");
@@ -409,4 +423,15 @@ public class AdminService {
         return hobbyRepository.findById(hobbyId).map(Hobby::getName).orElse("General");
     }
 
+    // new private helper, add anywhere in the class:
+    private int xpForLevelStage(String levelStage) {
+        return switch (levelStage) {
+            case "Basic" -> 50;
+            case "Intermediate" -> 100;
+            case "Advanced" -> 150;
+            case "Mastery" -> 200;
+            default -> 50;
+        };
+
+    }
 }

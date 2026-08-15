@@ -89,21 +89,18 @@ function formatCountdown(ms) {
 // ─── Session row ──────────────────────────────────────────────────────────────
 function SessionRow({ session }) {
   const cfg = VIBE_CFG[session.vibe] || VIBE_CFG.STRUGGLING;
+  const total = (session.xpEarned || 0) + (session.bonusXp || 0);
   return (
     <View style={[sr.row, { borderLeftColor: cfg.border }]}>
       <Text style={sr.emoji}>{cfg.emoji}</Text>
       <View style={sr.info}>
         <Text style={[sr.vibe, { color: cfg.color }]}>{cfg.label}</Text>
-        {session.note
-          ? <Text style={sr.note}>{session.note}</Text>
-          : <Text style={sr.noNote}>no note</Text>
-        }
+        {session.note ? <Text style={sr.note}>{session.note}</Text> : <Text style={sr.noNote}>no note</Text>}
+        {session.highlights ? <Text style={sr.highlights}>🎉 {session.highlights}</Text> : null}
       </View>
       <View style={sr.right}>
         <Text style={sr.date}>{dayLabel(session.loggedAt)}</Text>
-        {session.xpEarned > 0 && (
-          <Text style={sr.xp}>+{session.xpEarned} XP</Text>
-        )}
+        {total > 0 && <Text style={sr.xp}>+{total} XP</Text>}
       </View>
     </View>
   );
@@ -111,21 +108,25 @@ function SessionRow({ session }) {
 
 //Helper function to build the celebration lines based on the result object
 function buildCelebrationLines(result) {
-  const lines = [];
-  if (result.skillJustCompleted) {
-    lines.push({ emoji: '🎉', text: `Skill Complete! +${result.completionBonus} bonus` });
-  }
-  if (result.levelJustCompleted) {
-    lines.push({ emoji: '🏆', text: `Level Complete! +${result.levelBonus} bonus` });
-  }
-  if (result.leveledUp) {
-    lines.push({ emoji: '⭐', text: `Level Up! Now Level ${result.newLevel}` });
-  }
-  if (result.dailyBonus > 0) {
-    lines.push({ emoji: '☀️', text: `First session today +${result.dailyBonus} bonus` });
-  }
-  return lines;
+  return (result.xpBreakdown || []).map(item => ({
+    emoji: iconForLabel(item.label),
+    text: `${item.label} +${item.amount}`,
+  }));
 }
+
+function iconForLabel(label) {
+  if (label.includes('Nailed') || label.includes('zone')) return '🎯';
+  if (label.includes('progress') || label.includes('rhythm') || label.includes('Struggled') || label.includes('anyway')) return '💪';
+  if (label.includes('Daily bonus')) return '☀️';
+  if (label.includes('Skill complete')) return '🎉';
+  if (label.includes('level complete')) return '🏆';
+  if (label.includes('Roadmap complete')) return '👑';
+  if (label.includes('Streak')) return '🔥';
+  if (label.includes('completed')) return '✍️';
+  if (label.includes('Project complete')) return '🎊';
+  return '✨';
+}
+
 const sr = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

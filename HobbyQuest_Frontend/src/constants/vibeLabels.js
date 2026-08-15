@@ -43,9 +43,9 @@ export const VIBE_LABELS = {
 };
 
 const XP_LABEL = {
-  NAILED_IT: '+20 XP',
-  GETTING_THE_HANG_OF_IT: '+15 XP',
-  STRUGGLING: '+15 XP',
+  NAILED_IT: '+40 XP',
+  GETTING_THE_HANG_OF_IT: '+30 XP',
+  STRUGGLING: '+20 XP',
 };
 
 const VIBE_STYLE = {
