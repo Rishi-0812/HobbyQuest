@@ -7,7 +7,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = 'http://10.63.35.215:8080'; // Change to your Render URL when deployed
+const BASE_URL = 'http://10.239.102.215:8080'; // Change to your Render URL when deployed
 
 const api = axios.create({
   baseURL: BASE_URL,

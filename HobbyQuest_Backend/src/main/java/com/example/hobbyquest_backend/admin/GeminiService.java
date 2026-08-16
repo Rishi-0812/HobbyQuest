@@ -62,24 +62,26 @@ public class GeminiService {
     public String generateProject(String hobbyName, String concept, Integer targetCount, String unitLabel) {
         int[] range = com.example.hobbyquest_backend.project.XpTiers.validRangeForTargetCount(targetCount);
         String prompt = """
-            Generate a passion project for hobby "%s".
-            Concept: %s
-            Target count: %d
-            Unit label: %s
-            Return ONLY valid JSON with this exact shape:
-            {
-              "description": "string",
-              "suggestedUnitXp": <integer between %d and %d>,
-              "units": [
-                { "unitNumber": 1, "name": "string or null", "creativePrompt": "string" }
-              ]
-            }
-            For suggestedUnitXp: choose a value ONLY within the range %d-%d (inclusive),
-            based on how difficult or time-consuming one unit is. Do not choose a value
-            outside this range under any circumstances — it will be rejected and clamped.
-            It is okay to return only a partial units list (do NOT force all unit numbers up to target).
-            Do not include markdown code fences.
-            """.formatted(hobbyName, concept == null ? "" : concept, targetCount == null ? 1 : targetCount,
+        Generate a passion project for hobby "%s".
+        Concept: %s
+        Target count: %d
+        Unit label: %s
+        Return ONLY valid JSON with this exact shape:
+        {
+          "projectName": "string — a short, catchy title for this specific project, e.g. '30-Day Micro-Story Sprint'",
+          "description": "string",
+          "suggestedUnitXp": <integer between %d and %d>,
+          "units": [
+            { "unitNumber": 1, "name": "string or null", "creativePrompt": "string" }
+          ]
+        }
+        The projectName must be specific to this concept — never just repeat the hobby name.
+        For suggestedUnitXp: choose a value ONLY within the range %d-%d (inclusive),
+        based on how difficult or time-consuming one unit is. Do not choose a value
+        outside this range under any circumstances — it will be rejected and clamped.
+        It is okay to return only a partial units list (do NOT force all unit numbers up to target).
+        Do not include markdown code fences.
+        """.formatted(hobbyName, concept == null ? "" : concept, targetCount == null ? 1 : targetCount,
                 unitLabel == null ? "unit" : unitLabel, range[0], range[1], range[0], range[1]);
         return callGeminiAndValidateJson(prompt);
     }
