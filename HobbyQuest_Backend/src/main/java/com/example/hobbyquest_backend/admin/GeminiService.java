@@ -140,4 +140,22 @@ public class GeminiService {
         }
         return text.trim();
     }
+    public String generateHobbyMeta(String hobbyName, String description) {
+        String prompt = """
+            Generate metadata for a new passion hobby called "%s".
+            %s
+            Return ONLY valid JSON with this exact shape:
+            {
+              "description": "string — 1-2 sentences describing this hobby",
+              "tags": ["string", "string", "string"],
+              "difficulty": "Beginner" | "Intermediate" | "Advanced",
+              "emoji": "single emoji that best represents this hobby"
+            }
+            Do not include markdown code fences.
+            """.formatted(hobbyName, description == null || description.isBlank()
+                ? "" : "Additional context: " + description);
+        return callGeminiAndValidateJson(prompt);
+    }
+
+
 }

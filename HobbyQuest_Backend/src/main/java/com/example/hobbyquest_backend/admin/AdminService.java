@@ -83,38 +83,51 @@ public class AdminService {
     }
 
     public GenerateContentResponse generateProject(GenerateProjectRequest req) {
-        if (req.getTargetHobbyId() == null) throw new IllegalArgumentException("Target hobby is required.");
-        if (req.getConcept() == null || req.getConcept().isBlank())
-            throw new IllegalArgumentException("Project concept is required.");
-        if (req.getTargetCount() == null || req.getTargetCount() < 1)
-            throw new IllegalArgumentException("Target count must be at least 1.");
-        if (req.getUnitLabel() == null || req.getUnitLabel().isBlank())
-            throw new IllegalArgumentException("Unit label is required.");
-        if (req.getDurationDays() != null && req.getDurationDays() < 1)
-            throw new IllegalArgumentException("Duration days must be a positive integer.");
+        boolean isNewHobby = req.getTargetHobbyId() == null
+                && req.getNewHobbyName() != null && !req.getNewHobbyName().isBlank();
 
-        Hobby targetHobby = hobbyRepository.findById(req.getTargetHobbyId())
-                .orElseThrow(() -> new NoSuchElementException("Target hobby not found."));
+        if (!isNewHobby && req.getTargetHobbyId() == null) {
+            throw new IllegalArgumentException("Target hobby is required.");
+        }
+        if (req.getConcept() == null || req.getConcept().isBlank()) throw new IllegalArgumentException("Project concept is required.");
+        if (req.getTargetCount() == null || req.getTargetCount() < 1) throw new IllegalArgumentException("Target count must be at least 1.");
+        if (req.getUnitLabel() == null || req.getUnitLabel().isBlank()) throw new IllegalArgumentException("Unit label is required.");
+        if (req.getDurationDays() != null && req.getDurationDays() < 1) throw new IllegalArgumentException("Duration days must be a positive integer.");
+
+        String hobbyNameForPrompt;
+        String hobbyMetaJson = null;
+
+        if (isNewHobby) {
+            hobbyNameForPrompt = req.getNewHobbyName().trim();
+            hobbyMetaJson = geminiService.generateHobbyMeta(hobbyNameForPrompt, req.getNewHobbyDescription());
+        } else {
+            Hobby targetHobby = hobbyRepository.findById(req.getTargetHobbyId())
+                    .orElseThrow(() -> new NoSuchElementException("Target hobby not found."));
+            hobbyNameForPrompt = targetHobby.getName();
+        }
 
         String generated = geminiService.generateProject(
-                targetHobby.getName(),
-                req.getConcept(),
-                req.getTargetCount(),
-                req.getUnitLabel()
-        );
+                hobbyNameForPrompt, req.getConcept(), req.getTargetCount(), req.getUnitLabel());
 
         String unitLabelPlural = (req.getUnitLabelPlural() == null || req.getUnitLabelPlural().isBlank())
                 ? req.getUnitLabel().trim() + "s"
                 : req.getUnitLabelPlural().trim();
 
+        // Embed the hobby-meta JSON as a field inside the project's own JSON blob,
+        // rather than a separate staging row — keeps generate→review→approve as
+        // one atomic unit instead of two rows that could get out of sync.
+        String combinedRawJson = hobbyMetaJson == null
+                ? generated
+                : mergeHobbyMetaIntoProjectJson(generated, hobbyMetaJson);
+
         AiGeneratedContent saved = aiGeneratedContentRepository.save(AiGeneratedContent.builder()
                 .contentType("project")
-                .targetHobbyId(req.getTargetHobbyId())
-                .hobbyName(targetHobby.getName())
+                .targetHobbyId(req.getTargetHobbyId()) // null when creating a new hobby
+                .hobbyName(hobbyNameForPrompt)
                 .hobbyType("passion")
-                .rawJson(generated)
+                .rawJson(combinedRawJson)
                 .status("pending")
-                .projectName(targetHobby.getName() + " Project")   // short placeholder, matches publishProject's own fallback pattern
+                .projectName(hobbyNameForPrompt + " Project")
                 .targetCount(req.getTargetCount())
                 .unitLabel(req.getUnitLabel().trim())
                 .unitLabelPlural(unitLabelPlural)
@@ -125,6 +138,19 @@ public class AdminService {
                 .id(saved.getId())
                 .rawJson(saved.getRawJson())
                 .build();
+    }
+
+    private String mergeHobbyMetaIntoProjectJson(String projectJson, String hobbyMetaJson) {
+        try {
+            JsonNode projectNode = objectMapper.readTree(projectJson);
+            JsonNode hobbyNode = objectMapper.readTree(hobbyMetaJson);
+            ((com.fasterxml.jackson.databind.node.ObjectNode) projectNode).set("newHobby", hobbyNode);
+            return objectMapper.writeValueAsString(projectNode);
+        } catch (Exception e) {
+            // If merge fails for any reason, fall back to the project JSON alone —
+            // admin can still fill in hobby details manually in Review.
+            return projectJson;
+        }
     }
 
     public List<PendingContentResponse> getPendingContent(String contentTypeFilter) {
@@ -286,6 +312,33 @@ public class AdminService {
         try {
             JsonNode root = objectMapper.readTree(payloadJson);
 
+            Long targetHobbyId = row.getTargetHobbyId();
+
+            // Create the passion hobby first if this staged content includes one —
+            // same creation pattern as publishRoadmap's hobby half, just no skills.
+            JsonNode newHobbyNode = root.path("newHobby");
+            if (targetHobbyId == null && !newHobbyNode.isMissingNode()) {
+                String description = textValueNullable(newHobbyNode, "description");
+                String[] tags = parseTags(newHobbyNode.path("tags"));
+                String difficulty = firstNonBlank(textValueNullable(newHobbyNode, "difficulty"), "Beginner");
+                String emoji = textValueNullable(newHobbyNode, "emoji");
+
+                Hobby hobby = hobbyRepository.save(Hobby.builder()
+                        .name(row.getHobbyName())
+                        .type("passion")
+                        .description(description)
+                        .tags(tags)
+                        .difficulty(difficulty)
+                        .isActive(true)
+                        .emoji(emoji)
+                        .build());
+                targetHobbyId = hobby.getId();
+            }
+
+            if (targetHobbyId == null) {
+                throw new IllegalArgumentException("Project generation is missing target hobby.");
+            }
+
             String projectName = firstNonBlank(
                     textValueNullable(root, "projectName"),
                     row.getProjectName(),
@@ -296,31 +349,19 @@ public class AdminService {
             if (targetCount == null) targetCount = row.getTargetCount();
             if (targetCount == null || targetCount < 1) targetCount = 1;
 
-            String unitLabel = firstNonBlank(
-                    textValueNullable(root, "unitLabel"),
-                    row.getUnitLabel(),
-                    "unit"
-            );
-            String unitLabelPlural = firstNonBlank(
-                    textValueNullable(root, "unitLabelPlural"),
-                    row.getUnitLabelPlural(),
-                    unitLabel + "s"
-            );
+            String unitLabel = firstNonBlank(textValueNullable(root, "unitLabel"), row.getUnitLabel(), "unit");
+            String unitLabelPlural = firstNonBlank(textValueNullable(root, "unitLabelPlural"), row.getUnitLabelPlural(), unitLabel + "s");
             Integer durationDays = intValueNullable(root, "durationDays");
             if (durationDays == null) durationDays = row.getDurationDays();
 
-            if (row.getTargetHobbyId() == null) {
-                throw new IllegalArgumentException("Project generation is missing target hobby.");
-            }
-// in publishProject(), after resolving targetCount, add validated unit_xp:
             Integer suggestedUnitXp = intValueNullable(root, "suggestedUnitXp");
             int[] range = com.example.hobbyquest_backend.project.XpTiers.validRangeForTargetCount(targetCount);
             int unitXp = suggestedUnitXp != null
                     ? com.example.hobbyquest_backend.project.XpTiers.clamp(suggestedUnitXp, range[0], range[1])
-                    : (range[0] + range[1]) / 2; // fallback if Gemini omitted it entirely
+                    : (range[0] + range[1]) / 2;
 
             Project project = projectRepository.save(Project.builder()
-                    .hobbyId(row.getTargetHobbyId())
+                    .hobbyId(targetHobbyId)
                     .name(projectName)
                     .description(description)
                     .targetCount(targetCount)
@@ -330,8 +371,8 @@ public class AdminService {
                     .isPublic(true)
                     .createdBy(adminUserId)
                     .durationDays(durationDays)
-                    .unitXp(unitXp)                  // NEW
-                    .completionBonusXp(300)          // NEW — flat per spec, all sources
+                    .unitXp(unitXp)
+                    .completionBonusXp(300)
                     .build());
 
             JsonNode units = root.path("units");
@@ -340,7 +381,6 @@ public class AdminService {
                 for (JsonNode unit : units) {
                     Integer unitNumber = intValueNullable(unit, "unitNumber");
                     if (unitNumber == null || unitNumber < 1) unitNumber = index;
-
                     projectUnitRepository.save(ProjectUnit.builder()
                             .projectId(project.getId())
                             .unitNumber(unitNumber)

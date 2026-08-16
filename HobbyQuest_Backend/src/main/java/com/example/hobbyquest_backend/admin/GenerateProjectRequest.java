@@ -10,4 +10,6 @@ public class GenerateProjectRequest {
     private String unitLabel;
     private String unitLabelPlural;
     private Integer durationDays;
+    private String newHobbyName;
+    private String newHobbyDescription;
 }

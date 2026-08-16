@@ -36,14 +36,18 @@ export default function GenerateContentScreen({ navigation, route }) {
     extraGuidance: '',
   });
 
-  const [project, setProject] = useState({
-    targetHobbyId: null,
-    concept: '',
-    targetCount: '30',
-    unitLabel: '',
-    unitLabelPlural: '',
-    durationDays: '',
-  });
+const [project, setProject] = useState({
+  targetHobbyId: null,
+  creatingNew: false,
+  newHobbyName: '',
+  newHobbyDescription: '',
+  concept: '',
+  targetCount: '30',
+  unitLabel: '',
+  unitLabelPlural: '',
+  durationDays: '',
+});
+
 
   useEffect(() => {
     api.get('/hobbies?type=passion')
@@ -74,14 +78,17 @@ export default function GenerateContentScreen({ navigation, route }) {
           extraGuidance: roadmap.extraGuidance.trim() || null,
         }));
       } else {
-        ({ data } = await api.post('/admin/projects/generate', {
-          targetHobbyId: project.targetHobbyId,
-          concept: project.concept.trim(),
-          targetCount: Number(project.targetCount),
-          unitLabel: project.unitLabel.trim(),
-          unitLabelPlural: project.unitLabelPlural.trim() || null,
-          durationDays: project.durationDays.trim() ? Number(project.durationDays) : null,
-        }));
+      // inside submit(), project branch:
+      ({ data } = await api.post('/admin/projects/generate', {
+        targetHobbyId: project.creatingNew ? null : project.targetHobbyId,
+        newHobbyName: project.creatingNew ? project.newHobbyName.trim() : null,
+        newHobbyDescription: project.creatingNew ? project.newHobbyDescription.trim() : null,
+        concept: project.concept.trim(),
+        targetCount: Number(project.targetCount),
+        unitLabel: project.unitLabel.trim(),
+        unitLabelPlural: project.unitLabelPlural.trim() || null,
+        durationDays: project.durationDays.trim() ? Number(project.durationDays) : null,
+      }));
       }
       navigation.replace('ReviewContent', { contentId: data.id });
     } catch (err) {
@@ -96,10 +103,10 @@ export default function GenerateContentScreen({ navigation, route }) {
   }
 
   const roadmapValid = roadmap.hobbyName.trim().length > 0;
-  const projectValid = !!project.targetHobbyId
-    && project.concept.trim().length > 0
-    && Number(project.targetCount) >= 1
-    && project.unitLabel.trim().length > 0;
+const projectValid = (project.creatingNew ? project.newHobbyName.trim().length > 0 : !!project.targetHobbyId)
+  && project.concept.trim().length > 0
+  && Number(project.targetCount) >= 1
+  && project.unitLabel.trim().length > 0;
 
   return (
     <SafeAreaView style={layout.root}>
@@ -196,22 +203,46 @@ export default function GenerateContentScreen({ navigation, route }) {
                 </View>
                 <Text style={s.helper}>{selectedHobby?.name || 'Select a hobby below'}</Text>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={s.hobbyScroll}
-                  contentContainerStyle={s.hobbyRow}
-                >
-                  {passionHobbies.map(h => (
-                    <TouchableOpacity
-                      key={h.id}
-                      style={[s.hobbyBtn, project.targetHobbyId === h.id && s.hobbyBtnActive]}
-                      onPress={() => setProject(prev => ({ ...prev, targetHobbyId: h.id }))}
-                    >
-                      <Text style={[s.hobbyText, project.targetHobbyId === h.id && s.hobbyTextActive]}>{h.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+<ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hobbyScroll} contentContainerStyle={s.hobbyRow}>
+  <TouchableOpacity
+    style={[s.hobbyBtn, project.creatingNew && s.hobbyBtnActive]}
+    onPress={() => setProject(prev => ({ ...prev, creatingNew: true, targetHobbyId: null }))}
+  >
+    <Text style={[s.hobbyText, project.creatingNew && s.hobbyTextActive]}>+ Create new</Text>
+  </TouchableOpacity>
+  {passionHobbies.map(h => (
+    <TouchableOpacity
+      key={h.id}
+      style={[s.hobbyBtn, !project.creatingNew && project.targetHobbyId === h.id && s.hobbyBtnActive]}
+      onPress={() => setProject(prev => ({ ...prev, creatingNew: false, targetHobbyId: h.id }))}
+    >
+      <Text style={[s.hobbyText, !project.creatingNew && project.targetHobbyId === h.id && s.hobbyTextActive]}>{h.name}</Text>
+    </TouchableOpacity>
+  ))}
+    </ScrollView>
+
+    {project.creatingNew ? (
+      <>
+        <Text style={[s.label, s.labelSpaced]}>New Hobby Name</Text>
+        <TextInput
+          style={s.input}
+          value={project.newHobbyName || ''}
+          onChangeText={(v) => setProject(prev => ({ ...prev, newHobbyName: v }))}
+          placeholder="e.g. Woodworking"
+          placeholderTextColor={C.outline}
+        />
+        <Text style={s.label}>Hobby Description (optional)</Text>
+        <TextInput
+          style={[s.input, s.multiline]}
+          value={project.newHobbyDescription || ''}
+          onChangeText={(v) => setProject(prev => ({ ...prev, newHobbyDescription: v }))}
+          placeholder="Brief context to guide Gemini"
+          placeholderTextColor={C.outline}
+          multiline
+          textAlignVertical="top"
+        />
+      </>
+    ) : null}
 
                 <Text style={[s.label, s.labelSpaced]}>Project Concept</Text>
                 <TextInput
