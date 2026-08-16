@@ -66,6 +66,14 @@ public class User implements UserDetails {
     @Column(name = "reset_token_expiry")
     private LocalDateTime resetTokenExpiry;
 
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private Boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+
     // --- UserDetails implementation ---
 
     @Override
@@ -89,7 +97,11 @@ public class User implements UserDetails {
     public boolean isAccountNonLocked()     { return true; }
     @Override
     public boolean isCredentialsNonExpired(){ return true; }
+    // Change this existing method:
     @Override
-    public boolean isEnabled()              { return true; }
+    public boolean isEnabled() { return !Boolean.TRUE.equals(isDeleted); }
+
+
+
 
 }

@@ -56,6 +56,9 @@ import SuggestionsBoardScreen from '../screens/SuggestionsBoardScreen';
 
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+
+import EditProfileScreen from '../screens/EditProfileScreen';
+
 // â”€â”€ Auth Context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Usage in any screen: const { signOut } = useAuth();
 // NOTE: AuthContext is defined in ../services/AuthContext.js to avoid circular dependencies
@@ -209,7 +212,7 @@ function AppStack() {
       <Stack.Screen name="ActiveProject"     component={ActiveProjectScreen} />
       <Stack.Screen name="CustomProject"     component={CustomProjectScreen} />
       <Stack.Screen name="ProjectCompletion" component={ProjectCompletionScreen} />
-
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       {/*
         â”€â”€ Sprint 5: Community + Admin (uncomment when built) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         <Stack.Screen name="Browse"            component={BrowseScreen} />
