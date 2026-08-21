@@ -35,40 +35,61 @@ function SkillRow({ skill, onPress, isLast }) {
   const cfg      = STATUS_CFG[skill.status] || STATUS_CFG.locked;
   const isLocked = skill.status === 'locked';
 
+  if (isLocked) {
+    return (
+      <View style={rs.rowWrap}>
+        <View style={rs.connector}>
+          <View style={[rs.dot, { backgroundColor: C.outlineVariant }]} />
+          {!isLast && <View style={[rs.line, { backgroundColor: C.outlineVariant }]} />}
+        </View>
+        <View style={rs.lockedCard}>
+          <View style={rs.lockedIconWrap}>
+            <Text style={rs.lockedIcon}>🔒</Text>
+          </View>
+          <Text style={rs.lockedName} numberOfLines={1}>{skill.name}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <TouchableOpacity
-      onPress={() => !isLocked && onPress(skill)}
-      activeOpacity={isLocked ? 1 : 0.75}
-      style={[rs.rowWrap, isLocked && rs.rowLocked]}
+      onPress={() => onPress(skill)}
+      activeOpacity={0.75}
+      style={rs.rowWrap}
     >
       <View style={rs.connector}>
-        <View style={[rs.dot, { backgroundColor: isLocked ? C.outlineVariant : cfg.color }]} />
-        {!isLast && <View style={[rs.line, { backgroundColor: isLocked ? C.outlineVariant : cfg.color + '40' }]} />}
+        <View style={[rs.dot, { backgroundColor: cfg.color }]} />
+        {!isLast && <View style={[rs.line, { backgroundColor: cfg.color + '40' }]} />}
       </View>
 
       <View style={[rs.card, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
         <View style={rs.cardTop}>
           <Text style={rs.statusIcon}>{cfg.icon}</Text>
           <View style={rs.nameWrap}>
-            <Text style={[rs.skillName, isLocked && rs.skillNameLocked]} numberOfLines={1}>{skill.name}</Text>
-            {!isLocked && <Text style={rs.attempts}>{skill.attempt_count} session{skill.attempt_count !== 1 ? 's' : ''} logged</Text>}
+            <Text style={rs.skillName} numberOfLines={1}>{skill.name}</Text>
+            <Text style={rs.attempts}>
+              {skill.attempt_count} session{skill.attempt_count !== 1 ? 's' : ''} logged
+            </Text>
           </View>
-          {!isLocked && (
-            <View style={[rs.badge, { backgroundColor: cfg.color }]}>
-              <Text style={rs.badgeText}>{skill.order_index}</Text>
-            </View>
-          )}
+          <View style={[rs.badge, { backgroundColor: cfg.color }]}>
+            <Text style={rs.badgeText}>{skill.order_index}</Text>
+          </View>
         </View>
 
-        {!isLocked && (
-          <View style={rs.cardBottom}>
-            <Text style={[rs.statusLabel, { color: cfg.color }]}>
-              {skill.status === 'almost_there' ? 'Almost there' : skill.status === 'completed' ? 'Completed' : 'Learning'}
-            </Text>
-            {skill.status === 'almost_there' && <Text style={rs.upgradeHint}>Log Nailed It → auto-complete ›</Text>}
-            {skill.status === 'completed' && <Text style={[rs.upgradeHint, { color: C.completed }]}>+{skill.xp_reward ?? 50} XP earned</Text>}
-          </View>
-        )}
+        <View style={rs.cardBottom}>
+          <Text style={[rs.statusLabel, { color: cfg.color }]}>
+            {skill.status === 'almost_there' ? 'Almost there'
+             : skill.status === 'completed'   ? 'Completed'
+             : 'Learning'}
+          </Text>
+          {skill.status === 'almost_there' && (
+            <Text style={rs.upgradeHint}>Log Nailed It → auto-complete ›</Text>
+          )}
+          {skill.status === 'completed' && (
+            <Text style={[rs.upgradeHint, { color: C.completed }]}>+{skill.xp_reward ?? 50} XP earned</Text>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -327,6 +348,25 @@ const rs = StyleSheet.create({
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
   statusLabel: { fontSize: F.xs, fontWeight: '700' },
   upgradeHint: { fontSize: F.xs, color: C.textSecondary },
+  lockedCard: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+  backgroundColor: C.surfaceContainerLow,
+  borderRadius: R.xl,
+  padding: 14,
+  marginBottom: 12,
+  borderWidth: 1,
+  borderColor: C.outlineVariant,
+},
+lockedIconWrap: {
+  width: 32, height: 32, borderRadius: 16,
+  backgroundColor: C.surfaceContainerHigh,
+  alignItems: 'center', justifyContent: 'center',
+},
+lockedIcon: { fontSize: 14, opacity: 0.6 },
+lockedName: { flex: 1, fontSize: F.base, fontWeight: '600', color: C.textTertiary },
 });
 
 const styles = StyleSheet.create({
