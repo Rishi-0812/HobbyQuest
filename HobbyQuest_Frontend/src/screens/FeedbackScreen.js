@@ -1,7 +1,7 @@
 // FeedbackScreen
 // API: POST /feedback
-// Layout: navy header, type chips, optional hobby field, message composer,
-// optional screenshot attachment (bug reports benefit most from this).
+// Layout: navy header, type chips, hobby field (suggestion) or prefilled
+// context (bug/other), message composer, optional screenshot attachment.
 
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -13,7 +13,13 @@ import { PrimaryButton } from '../components/components';
 import api from '../services/api';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 
-export default function FeedbackScreen({ navigation , route }) {
+const MESSAGE_PLACEHOLDER = {
+  bug: 'Tell us what happened or what would help.',
+  suggestion: 'Anything else you want to add? (optional)',
+  other: 'Tell us what happened or what would help.',
+};
+
+export default function FeedbackScreen({ navigation, route }) {
   const prefill = route.params || {};
   const [type, setType] = useState(prefill.prefillType || 'bug');
   const [hobbyName, setHobbyName] = useState(prefill.prefillHobbyName || '');
@@ -22,6 +28,12 @@ export default function FeedbackScreen({ navigation , route }) {
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Suggestion: hobby name is the essential field, message is optional detail.
+  // Bug/other: message is the essential content, since there's no hobby field.
+  const canSubmit = type === 'suggestion'
+    ? hobbyName.trim().length > 0
+    : message.trim().length > 0;
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -55,8 +67,8 @@ export default function FeedbackScreen({ navigation , route }) {
 
       await api.post('/feedback', {
         type,
-        hobbyName: type === 'suggestion' ? hobbyName : null,
-        message,
+        hobbyName: type === 'suggestion' ? hobbyName : (hobbyName || null),
+        message: message.trim() || (type === 'suggestion' ? `Suggested hobby: ${hobbyName}` : ''),
         imageUrl: uploadedUrl,
       });
       setStatus('Feedback sent. Thank you.');
@@ -65,7 +77,7 @@ export default function FeedbackScreen({ navigation , route }) {
       setImageUri(null);
     } catch (err) {
       setUploading(false);
-      setStatus(err.message || 'Could not send feedback.');
+      setStatus(err.response?.data?.message || err.message || 'Could not send feedback.');
     } finally {
       setLoading(false);
     }
@@ -87,14 +99,30 @@ export default function FeedbackScreen({ navigation , route }) {
               </TouchableOpacity>
             ))}
           </View>
-            {type === 'suggestion' ? (
-              <TextInput style={s.input} value={hobbyName} onChangeText={setHobbyName} placeholder="Hobby name" placeholderTextColor={C.outline} />
-            ) : hobbyName ? (
-              <View style={s.prefilledHobbyBox}>
-                  <Text style={s.prefilledHobbyLabel}>Reporting an issue with:</Text>
-                  <Text style={s.prefilledHobbyText}>{hobbyName}</Text>
-                </View>
-              ) : null}
+
+          {type === 'suggestion' ? (
+            <TextInput
+              style={s.input}
+              value={hobbyName}
+              onChangeText={setHobbyName}
+              placeholder="Hobby name"
+              placeholderTextColor={C.outline}
+            />
+          ) : hobbyName ? (
+            <View style={s.prefilledHobbyBox}>
+              <Text style={s.prefilledHobbyLabel}>Reporting an issue with:</Text>
+              <Text style={s.prefilledHobbyText}>{hobbyName}</Text>
+            </View>
+          ) : null}
+
+          <TextInput
+            style={s.message}
+            value={message}
+            onChangeText={v => setMessage(v.slice(0, 500))}
+            placeholder={MESSAGE_PLACEHOLDER[type]}
+            placeholderTextColor={C.outline}
+            multiline
+          />
 
           {imageUri ? (
             <View style={s.imagePreviewWrap}>
@@ -118,7 +146,7 @@ export default function FeedbackScreen({ navigation , route }) {
             label={uploading ? 'Uploading image…' : 'Submit'}
             onPress={submit}
             loading={loading}
-            disabled={!message.trim()}
+            disabled={!canSubmit}
           />
         </View>
       </ScrollView>
@@ -150,6 +178,7 @@ const s = StyleSheet.create({
   },
   removeImageText: { color: C.white, fontSize: F.xs, fontWeight: '700' },
   status: { color: C.primaryContainer, fontWeight: '800', marginBottom: 12 },
-
-  prefilledHobbyBox: { backgroundColor: C.surfaceContainerLow, borderRadius: R.lg, padding: 12, marginBottom: 12 }, prefilledHobbyLabel: { fontSize: F.xs, color: C.onSurfaceVariant, fontWeight: '700' }, prefilledHobbyText: { fontSize: F.base, color: C.onSurface, fontWeight: '700', marginTop: 2 }
+  prefilledHobbyBox: { backgroundColor: C.surfaceContainerLow, borderRadius: R.lg, padding: 12, marginBottom: 12 },
+  prefilledHobbyLabel: { fontSize: F.xs, color: C.onSurfaceVariant, fontWeight: '700' },
+  prefilledHobbyText: { fontSize: F.base, color: C.onSurface, fontWeight: '700', marginTop: 2 },
 });

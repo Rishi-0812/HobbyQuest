@@ -67,18 +67,26 @@ export default function ReviewContentScreen({ navigation, route }) {
             };
           }),
         });
-      } else {
-        setProjectData({
-          targetHobbyName: data.hobbyName,
-          projectName: parsed.projectName || data.projectName || data.hobbyName || '',
-          description: parsed.description || '',
-          targetCount: String(parsed.targetCount ?? data.targetCount ?? 1),
-          unitLabel: parsed.unitLabel || data.unitLabel || 'unit',
-          unitLabelPlural: parsed.unitLabelPlural || data.unitLabelPlural || '',
-          durationDays: parsed.durationDays ?? data.durationDays ?? '',
-          units: Array.isArray(parsed.units) ? parsed.units : [],
-        });
-      }
+        } else {
+          setProjectData({
+            targetHobbyName: data.hobbyName,
+            projectName: parsed.projectName || data.projectName || data.hobbyName || '',
+            description: parsed.description || '',
+            targetCount: String(parsed.targetCount ?? data.targetCount ?? 1),
+            unitLabel: parsed.unitLabel || data.unitLabel || 'unit',
+            unitLabelPlural: parsed.unitLabelPlural || data.unitLabelPlural || '',
+            durationDays: parsed.durationDays ?? data.durationDays ?? '',
+            units: Array.isArray(parsed.units) ? parsed.units : [],
+            // NEW — only present when this project was generated alongside a brand-new hobby
+            newHobby: parsed.newHobby ? {
+              name: data.hobbyName,
+              description: parsed.newHobby.description || '',
+              tags: Array.isArray(parsed.newHobby.tags) ? parsed.newHobby.tags.join(', ') : '',
+              difficulty: parsed.newHobby.difficulty || 'Beginner',
+              emoji: parsed.newHobby.emoji || '',
+            } : null,
+          });
+        }
       initialized.current = true;
       setIsDirty(false);
     } catch (err) {
@@ -104,6 +112,14 @@ export default function ReviewContentScreen({ navigation, route }) {
         unitLabelPlural: projectData.unitLabelPlural,
         durationDays: projectData.durationDays === '' ? null : Number(projectData.durationDays),
         units: projectData.units,
+        // NEW — preserve the embedded new-hobby data through edits, or it silently
+    // drops out of the payload the moment the admin edits anything else.
+    newHobby: projectData.newHobby ? {
+      description: projectData.newHobby.description,
+      tags: projectData.newHobby.tags.split(',').map(t => t.trim()).filter(Boolean),
+      difficulty: projectData.newHobby.difficulty,
+      emoji: projectData.newHobby.emoji,
+    } : undefined,
       });
     }
     return '';
@@ -463,6 +479,53 @@ export default function ReviewContentScreen({ navigation, route }) {
                   </View>
                 </View>
               </View>
+
+              {isProject && projectData?.newHobby ? (
+                <>
+                  <Text style={s.sectionHeader}>New Hobby - {projectData.newHobby.name}</Text>
+                  <View style={s.formCard}>
+                    <Text style={s.smallLabel}>Description</Text>
+                    <TextInput
+                      style={[s.input, s.multiline]}
+                      value={projectData.newHobby.description}
+                      onChangeText={(v) => updateProject(prev => ({ ...prev, newHobby: { ...prev.newHobby, description: v } }))}
+                      multiline
+                      textAlignVertical="top"
+                      placeholderTextColor={C.outline}
+                    />
+
+                    <View style={s.fieldRow}>
+                      <View style={s.fieldHalf}>
+                        <Text style={s.smallLabel}>Difficulty</Text>
+                        <TextInput
+                          style={s.input}
+                          value={projectData.newHobby.difficulty}
+                          onChangeText={(v) => updateProject(prev => ({ ...prev, newHobby: { ...prev.newHobby, difficulty: v } }))}
+                          placeholderTextColor={C.outline}
+                        />
+                      </View>
+                      <View style={s.fieldHalf}>
+                        <Text style={s.smallLabel}>Emoji</Text>
+                        <TextInput
+                          style={s.input}
+                          value={projectData.newHobby.emoji}
+                          onChangeText={(v) => updateProject(prev => ({ ...prev, newHobby: { ...prev.newHobby, emoji: v } }))}
+                          placeholderTextColor={C.outline}
+                        />
+                      </View>
+                    </View>
+
+                    <Text style={s.smallLabel}>Tags (comma-separated)</Text>
+                    <TextInput
+                      style={s.input}
+                      value={projectData.newHobby.tags}
+                      onChangeText={(v) => updateProject(prev => ({ ...prev, newHobby: { ...prev.newHobby, tags: v } }))}
+                      placeholder="creative, indoor, solo"
+                      placeholderTextColor={C.outline}
+                    />
+                  </View>
+                </>
+              ) : null}
 
               <Text style={s.sectionHeader}>Units · {projectData.units.length}</Text>
 
