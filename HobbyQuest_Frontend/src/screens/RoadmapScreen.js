@@ -12,6 +12,8 @@ import { getHobbyEmoji } from '../constants/hobbyEmojis';
 import { getHobbyAccent } from '../constants/hobbyAccent';
 import api from '../services/api';
 import SlideToast from '../components/SlideToast';
+import HelpModal from '../components/HelpModal';
+import { HELP_CONTENT } from '../constants/helpContent';
 
 const LEVELS = ['Basic', 'Intermediate', 'Advanced', 'Mastery'];
 
@@ -163,6 +165,7 @@ export default function RoadmapScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   const accent = getHobbyAccent(hobbyId);
 
@@ -265,9 +268,14 @@ export default function RoadmapScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={reportIssue} style={styles.reportIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.reportIcon}>🚩</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => setHelpVisible(true)} style={styles.helpBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.helpBtnText}>?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={reportIssue} style={styles.reportIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.reportIcon}>🚩</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.hobbyRow}>
@@ -320,6 +328,13 @@ export default function RoadmapScreen({ route, navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={HELP_CONTENT.roadmap.title}
+        sections={HELP_CONTENT.roadmap.sections}
+      />
     </SafeAreaView>
   );
 }
@@ -373,7 +388,10 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
   hobbyHeader: { backgroundColor: C.indigo, paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 16 : 20, paddingBottom: 20 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backText: { color: 'rgba(255,255,255,0.75)', fontSize: F.sm },
+  helpBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  helpBtnText: { color: C.white, fontWeight: '900', fontSize: F.base },
   reportIconBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   reportIcon: { fontSize: 14 },
   hobbyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },

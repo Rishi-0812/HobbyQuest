@@ -17,6 +17,8 @@ import { layout, section, card, avatar } from '../styles';
 import api from '../services/api';
 import { getHobbyEmoji } from '../constants/hobbyEmojis';
 import { getHobbyAccent } from '../constants/hobbyAccent';
+import HelpModal from '../components/HelpModal';
+import { HELP_CONTENT } from '../constants/helpContent';
 
 const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -221,6 +223,7 @@ export default function DashboardScreen({ navigation }) {
   const [hobbies,    setHobbies]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
+  const [helpVisible, setHelpVisible] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -285,10 +288,15 @@ export default function DashboardScreen({ navigation }) {
             <Text style={s.greeting}>{greeting},</Text>
             <Text style={s.userName}>{dashData?.user?.name ?? 'there'} 👋</Text>
           </View>
-          <View style={s.streakBadge}>
-            <Text style={{ fontSize: 22 }}>🔥</Text>
-            <Text style={s.streakNum}>{dashData?.streak ?? 0}</Text>
-            <Text style={s.streakLabel}>day streak</Text>
+          <View style={s.headerActions}>
+            <TouchableOpacity onPress={() => setHelpVisible(true)} style={s.helpBtn}>
+              <Text style={s.helpBtnText}>?</Text>
+            </TouchableOpacity>
+            <View style={s.streakBadge}>
+              <Text style={{ fontSize: 22 }}>🔥</Text>
+              <Text style={s.streakNum}>{dashData?.streak ?? 0}</Text>
+              <Text style={s.streakLabel}>day streak</Text>
+            </View>
           </View>
         </View>
 
@@ -378,6 +386,13 @@ export default function DashboardScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={HELP_CONTENT.dashboard.title}
+        sections={HELP_CONTENT.dashboard.sections}
+      />
     </SafeAreaView>
   );
 }
@@ -392,11 +407,21 @@ const s = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   greeting:  { fontSize: F.sm, color: 'rgba(255,255,255,0.65)' },
   userName:  { fontSize: F.lg, fontWeight: '800', color: C.white, marginTop: 2 },
   streakBadge: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: R.lg, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' },
   streakNum:   { fontSize: F.lg, fontWeight: '800', color: C.white },
   streakLabel: { fontSize: F.xs, color: 'rgba(255,255,255,0.6)' },
+  helpBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpBtnText: { color: C.white, fontWeight: '900', fontSize: F.base },
 
   xpCard:    { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: R.md, padding: 12 },
   xpRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },

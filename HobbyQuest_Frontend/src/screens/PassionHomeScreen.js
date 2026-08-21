@@ -13,6 +13,8 @@ import api from '../services/api';
 import { getHobbyEmoji } from '../constants/hobbyEmojis';
 import { getHobbyAccent } from '../constants/hobbyAccent';
 import SlideToast from '../components/SlideToast';
+import HelpModal from '../components/HelpModal';
+import { HELP_CONTENT } from '../constants/helpContent';
 
 function ProjectCard({ project, onEnrol, onResume, canEnrol }) {
   const progress = project.targetCount ? (project.currentCount || 0) / project.targetCount : 0;
@@ -67,6 +69,7 @@ export default function PassionHomeScreen({ route, navigation }) {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   const accent = getHobbyAccent(hobbyId);
 
@@ -169,9 +172,14 @@ function reportIssue() {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={header.backLink}>Back</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={reportIssue} style={s.reportIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={s.reportIcon}>🚩</Text>
-          </TouchableOpacity>
+          <View style={s.headerActions}>
+            <TouchableOpacity onPress={() => setHelpVisible(true)} style={s.helpBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.helpBtnText}>?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={reportIssue} style={s.reportIconBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.reportIcon}>🚩</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={s.heroRow}>
@@ -229,12 +237,22 @@ function reportIssue() {
           <Text style={s.unenrollBtnText}>Unenrol from this hobby</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <HelpModal
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={HELP_CONTENT.passion.title}
+        sections={HELP_CONTENT.passion.sections}
+      />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  helpBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  helpBtnText: { color: C.white, fontWeight: '900', fontSize: F.base },
   reportIconBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   reportIcon: { fontSize: 14 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 8 },

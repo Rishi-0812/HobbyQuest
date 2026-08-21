@@ -53,6 +53,7 @@ import PendingContentScreen from '../screens/admin/PendingContentScreen';
 import ProfileScreen            from '../screens/ProfileScreen';
 import FeedbackScreen           from '../screens/FeedbackScreen';
 import SuggestionsBoardScreen from '../screens/SuggestionsBoardScreen';
+import HelpCenterScreen         from '../screens/HelpCenterScreen';
 
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
@@ -213,6 +214,7 @@ function AppStack() {
       <Stack.Screen name="CustomProject"     component={CustomProjectScreen} />
       <Stack.Screen name="ProjectCompletion" component={ProjectCompletionScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
       {/*
         â”€â”€ Sprint 5: Community + Admin (uncomment when built) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         <Stack.Screen name="Browse"            component={BrowseScreen} />

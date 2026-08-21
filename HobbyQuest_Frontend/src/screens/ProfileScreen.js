@@ -118,6 +118,7 @@ useEffect(() => {
               currentEmail: profile?.email,
             })}
           />
+          <SettingsRow emoji="📖" label="How HobbyQuest Works" onPress={() => navigation.navigate('HelpCenter')} />
           <SettingsRow emoji="💡" label="Suggestions Board" onPress={() => navigation.navigate('SuggestionsBoard')} />
           <SettingsRow emoji="💬" label="Send Feedback" onPress={() => navigation.navigate('Feedback')} />
         </View>
