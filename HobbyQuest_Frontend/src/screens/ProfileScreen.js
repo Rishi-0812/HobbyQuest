@@ -29,7 +29,8 @@ export default function ProfileScreen({ navigation }) {
   const [hobbies, setHobbies] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+useEffect(() => {
+  function load() {
     Promise.all([
       api.get('/user/dashboard'),
       api.get('/hobbies/enrolled'),
@@ -41,7 +42,11 @@ export default function ProfileScreen({ navigation }) {
         setProfile(prof.data);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }
+  load();
+  const unsubscribe = navigation.addListener('focus', load);
+  return unsubscribe;
+}, [navigation]);
 
   async function handleLogout() {
     try {

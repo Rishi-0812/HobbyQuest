@@ -11,15 +11,24 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 async function submit() {
-  if (!email.trim()) {
+  const trimmed = email.trim();
+  if (!trimmed) {
     setError('Please enter your email.');
+    return;
+  }
+  if (!isValidEmail(trimmed)) {
+    setError('Please enter a valid email address.');
     return;
   }
   setLoading(true);
   setError('');
   try {
-    await api.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
+    await api.post('/auth/forgot-password', { email: trimmed.toLowerCase() });
     setSent(true);
   } catch (err) {
     setError(err.response?.data?.message || 'Something went wrong. Please try again.');

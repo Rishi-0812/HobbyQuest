@@ -15,9 +15,24 @@ public class FeedbackService {
     private final FeedbackVoteRepository feedbackVoteRepository;
 
     public FeedbackReport submit(Long userId, String type, String hobbyName, String message, String imageUrl) {
-        if (message == null || message.isBlank()) {
-            throw new IllegalArgumentException("Feedback message is required");
-        }
+        // in FeedbackService.submit()
+if ("suggestion".equalsIgnoreCase(resolvedType)) {
+    if (hobbyName == null || hobbyName.isBlank()) {
+        throw new IllegalArgumentException("Hobby name is required for a suggestion.");
+    }
+    String cleaned = hobbyName.trim();
+    if (cleaned.length() < 2 || cleaned.length() > 60) {
+        throw new IllegalArgumentException("Hobby name must be between 2 and 60 characters.");
+    }
+    if (!cleaned.matches("^[a-zA-Z0-9 &'\\-]+$")) {
+        throw new IllegalArgumentException("Hobby name contains invalid characters.");
+    }
+    // Require at least one real letter, not just numbers/symbols
+    if (!cleaned.matches(".*[a-zA-Z]{2,}.*")) {
+        throw new IllegalArgumentException("Please enter a real hobby name.");
+    }
+}
+        
         return feedbackReportRepository.save(FeedbackReport.builder()
                 .userId(userId)
                 .type(type == null ? "other" : type)
