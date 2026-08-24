@@ -6,7 +6,7 @@
 //   'app'        â†’ token + preferences done â†’ AppStack (Dashboard)
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet , Platform }  from 'react-native';
+import { View, Text, Image, ActivityIndicator, StyleSheet , Platform }  from 'react-native';
 import { NavigationContainer }          from '@react-navigation/native';
 import { createStackNavigator }         from '@react-navigation/stack';
 import { createBottomTabNavigator }     from '@react-navigation/bottom-tabs';
@@ -326,7 +326,11 @@ signIn: async () => {
     return (
       <View style={splash.wrap}>
         <View style={splash.logoBox}>
-          <Text style={{ fontSize: 38 }}>ðŸŽ¯</Text>
+          <Image
+            source={require('../../assets/logo-placeholder.png')}
+            style={splash.logoImage}
+            resizeMode="cover"
+          />
         </View>
         <Text style={splash.name}>HobbyQuest</Text>
         <ActivityIndicator
@@ -361,9 +365,11 @@ const splash = StyleSheet.create({
     width: 80, height: 80, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
     marginBottom: 16,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
+  logoImage: { width: 100, height: 100 },
   name: {
     fontSize: F.xxl,
     fontWeight: '800',

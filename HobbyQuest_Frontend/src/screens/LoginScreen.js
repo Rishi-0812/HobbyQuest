@@ -160,15 +160,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logoWrap: {
-    width: 64, height: 64,
+    width: 88, height: 88,
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
     marginBottom: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
   },
-  logoImage: { width: 36, height: 36 },
+  logoImage: { width: 110, height: 110 },
   appName:   { fontSize: F.xxl, fontWeight: '800', color: C.white, letterSpacing: -0.5 },
   tagline:   { fontSize: F.base, color: 'rgba(255,255,255,0.75)', marginTop: 6 },
 
