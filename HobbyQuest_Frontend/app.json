@@ -31,7 +31,8 @@
        [
         "expo-image-picker",
         {
-          "photosPermission": "HobbyQuest needs access to your photos so you can share a favorite from your project."
+          "photosPermission": "HobbyQuest needs access to your photos so you can share a favorite from your project.",
+          "cameraPermission": "HobbyQuest needs camera access so you can take a photo directly."
         }
       ]
     ]

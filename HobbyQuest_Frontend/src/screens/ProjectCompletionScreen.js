@@ -7,13 +7,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { C, F, R, SHADOW } from '../theme';
 import { PrimaryButton } from '../components/components';
 import { layout, card, header } from '../styles';
 import api from '../services/api';
 import { getHobbyEmoji } from '../constants/hobbyEmojis';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
+import { pickOrCaptureImage } from '../services/imagePicker';
 
 function StatTile({ label, value }) {
   return (
@@ -69,22 +69,10 @@ export default function ProjectCompletionScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [params.progressId]);
 
-  async function pickImage() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to share an image with your post.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-      allowsEditing: true,
-      aspect: [4, 3],
-    });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setImageUri(result.assets[0].uri);
-    }
-  }
+async function pickImage() {
+  const uri = await pickOrCaptureImage();
+  if (uri) setImageUri(uri);
+}
 
   function removeImage() {
     setImageUri(null);

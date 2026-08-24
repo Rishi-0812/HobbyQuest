@@ -4,14 +4,14 @@
 // context (bug/other), message composer, optional screenshot attachment.
 
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { C, F, R } from '../theme';
 import { layout, header, card } from '../styles';
 import { PrimaryButton } from '../components/components';
 import api from '../services/api';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
+import { pickOrCaptureImage } from '../services/imagePicker';
 
 const MESSAGE_PLACEHOLDER = {
   bug: 'Tell us what happened or what would help.',
@@ -36,18 +36,8 @@ export default function FeedbackScreen({ navigation, route }) {
     : message.trim().length > 0;
 
   async function pickImage() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to attach a screenshot.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setImageUri(result.assets[0].uri);
-    }
+    const uri = await pickOrCaptureImage();
+    if (uri) setImageUri(uri);
   }
 
   function removeImage() {
