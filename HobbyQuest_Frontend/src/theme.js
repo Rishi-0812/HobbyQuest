@@ -122,7 +122,7 @@ export const SHADOW = {
 };
 
 // XP level thresholds
-const LEVEL_XP = [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200];
+const LEVEL_XP = [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200, 4000, 4800, 5600, 6400, 7200];
 
 export function getLevel(xp) {
   let level = 1;
@@ -135,7 +135,12 @@ export function getLevel(xp) {
 export function getXPProgress(xp) {
   const level   = getLevel(xp);
   const current = LEVEL_XP[level - 1] ?? 0;
-  const next    = LEVEL_XP[level]     ?? LEVEL_XP[LEVEL_XP.length - 1];
+  const next    = LEVEL_XP[level];
+
+  if (next === undefined) {
+    return { level, progress: 1, xpToNext: 0 };
+  }
+
   return {
     level,
     progress: (xp - current) / (next - current),

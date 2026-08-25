@@ -12,7 +12,8 @@ public class XPService {
     private final UserRepository userRepository;
 
     private static final int[] LEVEL_XP = {
-            0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200
+            0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200,
+            4000, 4800, 5600, 6400, 7200
     };
 
     public static final int STREAK_7_BONUS  = 100;
