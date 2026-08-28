@@ -22,4 +22,16 @@ public class EmailService {
         );
         mailSender.send(message);
     }
+
+    public void sendDailyReminderEmail(String toEmail, String userName) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("HobbyQuest — Keep your streak alive");
+        message.setText(
+                "Hi " + userName + ",\n\n" +
+                        "You haven't logged a session today yet. Log one now to keep your streak alive!\n\n" +
+                        "Keep making progress with HobbyQuest."
+        );
+        mailSender.send(message);
+    }
 }

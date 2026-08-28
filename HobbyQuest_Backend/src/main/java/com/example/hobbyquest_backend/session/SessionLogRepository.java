@@ -75,4 +75,16 @@ public interface SessionLogRepository extends JpaRepository<SessionLog, Long> {
             @Param("userId") Long userId,
             @Param("startOfDay") LocalDateTime startOfDay
     );
+
+    @Query("""
+        SELECT COUNT(s) > 0 FROM SessionLog s
+        WHERE s.userId = :userId
+          AND s.loggedAt >= :startOfDay
+          AND s.loggedAt < :startOfNextDay
+        """)
+    boolean hasSessionBetween(
+            @Param("userId") Long userId,
+            @Param("startOfDay") LocalDateTime startOfDay,
+            @Param("startOfNextDay") LocalDateTime startOfNextDay
+    );
 }

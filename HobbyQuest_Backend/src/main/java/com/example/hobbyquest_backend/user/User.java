@@ -73,6 +73,14 @@ public class User implements UserDetails {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Column(name = "daily_reminder_enabled", nullable = false)
+    @Builder.Default
+    private Boolean dailyReminderEnabled = false;
+
+    @Column(name = "reminder_hour_utc", nullable = false)
+    @Builder.Default
+    private Integer reminderHourUtc = 18;
+
 
     // --- UserDetails implementation ---
 

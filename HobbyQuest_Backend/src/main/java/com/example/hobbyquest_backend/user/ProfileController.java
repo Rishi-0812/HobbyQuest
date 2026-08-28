@@ -30,6 +30,7 @@ public class ProfileController {
         body.put("currentStreak", currentUser.getCurrentStreak());
         body.put("longestStreak", currentUser.getLongestStreak());
         body.put("freezeAvailable", Boolean.TRUE.equals(currentUser.getStreakFreezeAvailable()));
+        body.put("dailyReminderEnabled", Boolean.TRUE.equals(currentUser.getDailyReminderEnabled()));
         body.put("enrolledHobbies", enrolled);
         return ResponseEntity.ok(body);
     }
@@ -49,6 +50,21 @@ public class ProfileController {
         currentUser.setName(trimmedName);
         userRepository.save(currentUser);
         return ResponseEntity.ok(Map.of("message", "Profile updated.", "name", currentUser.getName()));
+    }
+
+    @PatchMapping("/user/profile/reminder")
+    public ResponseEntity<?> updateReminderPreference(@AuthenticationPrincipal User currentUser,
+                                                       @RequestBody ReminderPreferenceRequest request) {
+        if (request.getEnabled() == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Enabled must be a boolean."));
+        }
+
+        currentUser.setDailyReminderEnabled(request.getEnabled());
+        userRepository.save(currentUser);
+        return ResponseEntity.ok(Map.of(
+                "message", "Reminder preference updated.",
+                "dailyReminderEnabled", currentUser.getDailyReminderEnabled()
+        ));
     }
 
     @DeleteMapping("/user/profile")

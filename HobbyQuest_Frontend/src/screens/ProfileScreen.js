@@ -3,7 +3,7 @@
 // Layout: navy profile summary, XP/streak stats, enrolled hobbies, settings list.
 
 import React, { useContext, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, R, getXPProgress, SHADOW } from '../theme';
 import { ProgressBar } from '../components/components';
@@ -27,6 +27,7 @@ export default function ProfileScreen({ navigation }) {
   const [dashboard, setDashboard] = useState(null);
   const [profile, setProfile] = useState(null);
   const [hobbies, setHobbies] = useState([]);
+  const [dailyReminderEnabled, setDailyReminderEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
 
 useEffect(() => {
@@ -40,6 +41,7 @@ useEffect(() => {
         setDashboard(dash.data);
         setHobbies(enrolled.data || []);
         setProfile(prof.data);
+        setDailyReminderEnabled(Boolean(prof.data?.dailyReminderEnabled));
       })
       .finally(() => setLoading(false));
   }
@@ -54,6 +56,17 @@ useEffect(() => {
       signOut();
     } catch {
       signOut();
+    }
+  }
+
+  async function handleReminderToggle(enabled) {
+    const previousValue = dailyReminderEnabled;
+    setDailyReminderEnabled(enabled);
+    try {
+      await api.patch('/user/profile/reminder', { enabled });
+    } catch {
+      setDailyReminderEnabled(previousValue);
+      Alert.alert('Could not update setting', 'Please try again.');
     }
   }
 
@@ -118,6 +131,15 @@ useEffect(() => {
               currentEmail: profile?.email,
             })}
           />
+          <View style={s.settingsRow}>
+            <Text style={s.settingsRowText}>Daily reminder email</Text>
+            <Switch
+              value={dailyReminderEnabled}
+              onValueChange={handleReminderToggle}
+              trackColor={{ true: C.primaryContainer, false: C.surfaceContainer }}
+              thumbColor={dailyReminderEnabled ? C.primaryFixed : C.outline}
+            />
+          </View>
           <SettingsRow emoji="📖" label="How HobbyQuest Works" onPress={() => navigation.navigate('HelpCenter')} />
           <SettingsRow emoji="💡" label="Suggestions Board" onPress={() => navigation.navigate('SuggestionsBoard')} />
           <SettingsRow emoji="💬" label="Send Feedback" onPress={() => navigation.navigate('Feedback')} />
