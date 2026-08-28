@@ -187,6 +187,8 @@ function OnboardingStack() {
       <Stack.Screen name="ActiveProject"     component={ActiveProjectScreen} />
       <Stack.Screen name="CustomProject"     component={CustomProjectScreen} />
       <Stack.Screen name="ProjectCompletion" component={ProjectCompletionScreen} />
+      <Stack.Screen name="EditProfile"       component={EditProfileScreen} />
+      <Stack.Screen name="HelpCenter"        component={HelpCenterScreen} />
       <Stack.Screen name="Feedback"          component={FeedbackScreen} />
       <Stack.Screen name="SuggestionsBoard" component={SuggestionsBoardScreen} />
     </Stack.Navigator>
