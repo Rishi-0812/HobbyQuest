@@ -31,6 +31,7 @@ export default function ProjectCompletionScreen({ route, navigation }) {
   const [caption, setCaption] = useState('');
   const [postText, setPostText] = useState('');
   const [imageUri, setImageUri] = useState(null);
+  const [contentType, setContentType] = useState('photo');
   const [uploading, setUploading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [message, setMessage] = useState('');
@@ -85,6 +86,7 @@ useEffect(() => {
         setCaption(match.caption || '');
         setPostText(match.postText || '');
         setImageUri(match.imageUrl || null);
+        setContentType(match.postText ? 'text' : 'photo');
       }
     } catch {
       // no existing share yet
@@ -108,7 +110,7 @@ async function pickImage() {
       setMessage('');
 
       let uploadedUrl = null;
-      if (imageUri) {
+      if (contentType === 'photo' && imageUri) {
         setUploading(true);
         uploadedUrl = await uploadImageToCloudinary(imageUri);
         setUploading(false);
@@ -119,8 +121,8 @@ async function pickImage() {
         projectId: params.projectId,
         postType: 'project_completion',
         caption: caption.trim() || `Completed ${params.projectName}!`,
-        imageUrl: uploadedUrl || (existingPost?.imageUrl ?? null),
-        postText: postText.trim() || null,
+        imageUrl: contentType === 'photo' ? (uploadedUrl || null) : null,
+        postText: contentType === 'text' ? (postText.trim() || null) : null,
       };
 
       if (existingPost && existingPost.id) {
@@ -143,7 +145,7 @@ async function pickImage() {
     }
   }
 
-  const showShareForm = !params.readOnly && !(existingPost && !replaceMode);
+  const showShareForm = !existingPost || replaceMode;
 
   return (
     <SafeAreaView style={layout.root}>
@@ -174,12 +176,14 @@ async function pickImage() {
           </View>
         )}
 
-        {existingPost && !params.readOnly && !replaceMode ? (
+        {existingPost && !replaceMode ? (
           <View style={[card.hero, s.shareCard]}>
-            <Text style={s.shareTitle}>You already shared this one</Text>
+            <Text style={s.shareTitle}>{params.readOnly ? 'Already shared to the community' : 'You already shared this one'}</Text>
             {existingPost.imageUrl ? <Image source={{ uri: existingPost.imageUrl }} style={s.imagePreview} resizeMode="cover" /> : null}
             {existingPost.postText ? <Text style={s.previewText}>{existingPost.postText}</Text> : null}
-            <PrimaryButton label="Replace" color={C.primaryContainer} onPress={() => setReplaceMode(true)} />
+            {!params.readOnly ? (
+              <PrimaryButton label="Replace" color={C.primaryContainer} onPress={() => setReplaceMode(true)} />
+            ) : null}
           </View>
         ) : null}
 
@@ -190,18 +194,42 @@ async function pickImage() {
               Pick a favorite to share — not everything, just the one you're proudest of. Add a short caption for the community feed. Posts appear after admin approval.
             </Text>
 
-            {imageUri ? (
+            <View style={s.contentTypeToggle}>
+              {[
+                { key: 'photo', label: '📷 Photo' },
+                { key: 'text', label: '✍️ Written piece' },
+              ].map(option => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[s.contentTypeOption, contentType === option.key && s.contentTypeOptionActive]}
+                  onPress={() => setContentType(option.key)}
+                >
+                  <Text style={[s.contentTypeText, contentType === option.key && s.contentTypeTextActive]}>{option.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {contentType === 'photo' && imageUri ? (
               <View style={s.imagePreviewWrap}>
                 <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
                 <TouchableOpacity onPress={removeImage} style={s.removeImageBtn}>
                   <Text style={s.removeImageText}>Remove</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
+            ) : contentType === 'photo' ? (
               <TouchableOpacity onPress={pickImage} style={s.pickImageBtn}>
                 <Text style={s.pickImageEmoji}>🖼️</Text>
-                <Text style={s.pickImageText}>Add a photo (optional)</Text>
+                <Text style={s.pickImageText}>Add a photo</Text>
               </TouchableOpacity>
+            ) : (
+              <TextInput
+                style={s.postTextInput}
+                value={postText}
+                onChangeText={value => setPostText(value.slice(0, 1000))}
+                placeholder="Write it out — a poem, a reflection, or a short story"
+                placeholderTextColor={C.outline}
+                multiline
+              />
             )}
 
             <TextInput
@@ -209,15 +237,6 @@ async function pickImage() {
               value={caption}
               onChangeText={value => setCaption(value.slice(0, 150))}
               placeholder="What did this project teach you?"
-              placeholderTextColor={C.outline}
-              multiline
-            />
-
-            <TextInput
-              style={s.postTextInput}
-              value={postText}
-              onChangeText={value => setPostText(value.slice(0, 1000))}
-              placeholder="Write it out — a poem, a reflection, or a short story"
               placeholderTextColor={C.outline}
               multiline
             />
@@ -235,10 +254,11 @@ async function pickImage() {
           </View>
         ) : null}
 
-        {params.readOnly ? (
+        {params.readOnly && existingPost ? (
           <View style={[card.hero, s.shareCard]}>
             <Text style={s.shareTitle}>Completed project</Text>
-            <Text style={s.shareText}>This project is complete and viewable as a historical milestone.</Text>
+            {existingPost?.caption ? <Text style={s.captionPreview}>{existingPost.caption}</Text> : null}
+            <Text style={s.shareText}>This completed project is read-only because it has already been shared.</Text>
           </View>
         ) : null}
 
@@ -263,6 +283,11 @@ const s = StyleSheet.create({
   statValue: { fontSize: F.xl, color: C.primaryContainer, fontWeight: '900' },
   statLabel: { fontSize: F.xs, color: C.onSurfaceVariant, fontWeight: '700', marginTop: 4 },
   shareCard: { gap: 12 },
+  contentTypeToggle: { flexDirection: 'row', gap: 8, backgroundColor: C.surfaceContainerLow, borderRadius: R.lg, padding: 4 },
+  contentTypeOption: { flex: 1, paddingVertical: 10, borderRadius: R.md, alignItems: 'center' },
+  contentTypeOptionActive: { backgroundColor: C.primaryFixed },
+  contentTypeText: { color: C.onSurfaceVariant, fontSize: F.sm, fontWeight: '700' },
+  contentTypeTextActive: { color: C.primaryContainer },
   shareTitle: { fontSize: F.lg, color: C.onSurface, fontWeight: '900' },
   shareText: { fontSize: F.base, color: C.onSurfaceVariant, lineHeight: 20 },
   pickImageBtn: {
@@ -283,6 +308,8 @@ const s = StyleSheet.create({
   caption: { minHeight: 94, borderRadius: R.lg, borderWidth: 1.5, borderColor: C.outlineVariant, padding: 14, textAlignVertical: 'top', color: C.onSurface, backgroundColor: C.surfaceContainerLow },
   postTextInput: { minHeight: 150, borderRadius: R.lg, borderWidth: 1.5, borderColor: C.outlineVariant, padding: 14, textAlignVertical: 'top', color: C.onSurface, backgroundColor: C.surfaceContainerLow },
   previewText: { color: C.onSurface, fontSize: F.sm, lineHeight: 20 },
+  readOnlyText: { color: C.onSurface, fontSize: F.md, lineHeight: 27 },
+  captionPreview: { color: C.onSurfaceVariant, fontSize: F.sm, lineHeight: 20 },
   message: { color: C.primaryContainer, fontSize: F.sm, fontWeight: '700' },
   skipLink: { alignItems: 'center', paddingTop: 4 },
   skipLinkText: { color: C.onSurfaceVariant, fontSize: F.sm, fontWeight: '600', textDecorationLine: 'underline' },

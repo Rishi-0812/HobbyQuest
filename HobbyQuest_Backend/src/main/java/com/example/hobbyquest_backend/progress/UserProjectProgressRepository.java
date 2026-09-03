@@ -13,4 +13,5 @@ public interface UserProjectProgressRepository extends JpaRepository<UserProject
 
     int countByUserIdAndStatus(Long userId, String status);
     List<UserProjectProgress> findByUserIdAndStatus(Long userId, String status);
+    List<UserProjectProgress> findByUserIdAndStatusAndIsCompleteFalse(Long userId, String status);
 }

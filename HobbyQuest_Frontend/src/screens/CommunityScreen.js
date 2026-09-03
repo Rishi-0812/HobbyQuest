@@ -31,6 +31,9 @@ function PostCard({ post, onOpenImage, onOpenText }) {
   const accent = post.hobbyId ? getHobbyAccent(post.hobbyId) : C.primaryContainer;
   const initial = (post.posterName || 'H').charAt(0).toUpperCase();
   const previewText = post.postText ? post.postText.trim() : '';
+  const truncatedText = previewText.length > 150
+    ? `${previewText.slice(0, 150).trimEnd()}…`
+    : previewText;
 
   return (
     <View style={s.card}>
@@ -56,12 +59,10 @@ function PostCard({ post, onOpenImage, onOpenText }) {
 
       {previewText ? (
         <View style={s.textPreviewWrap}>
-          <Text style={s.previewText} numberOfLines={5}>{previewText}</Text>
-          {previewText.length > 150 ? (
-            <TouchableOpacity onPress={() => onOpenText(previewText)}>
-              <Text style={s.readMore}>Read more</Text>
-            </TouchableOpacity>
-          ) : null}
+          <Text style={s.previewText} numberOfLines={5}>{truncatedText}</Text>
+          <TouchableOpacity onPress={() => onOpenText(previewText)}>
+            <Text style={s.readMore}>Read more</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -195,10 +196,10 @@ const s = StyleSheet.create({
   caption: { fontSize: F.sm, color: C.onSurface, lineHeight: 19 },
   imageOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 18 },
   fullImage: { width: '100%', height: '70%', borderRadius: 18, backgroundColor: C.surfaceContainerLow },
-  textOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 18 },
-  textModal: { width: '100%', maxWidth: 520, backgroundColor: C.surfaceLowest, borderRadius: 24, padding: 22, maxHeight: '80%' },
-  textModalTitle: { fontSize: F.lg, fontWeight: '800', color: C.onSurface, marginBottom: 12 },
-  textModalBody: { fontSize: F.base, lineHeight: 26, color: C.onSurface },
+  textOverlay: { flex: 1, backgroundColor: C.surfaceLowest, padding: 28 },
+  textModal: { flex: 1, width: '100%', maxWidth: 620, alignSelf: 'center', paddingTop: 36 },
+  textModalTitle: { fontSize: F.sm, fontWeight: '800', color: C.onSurfaceVariant, marginBottom: 20, textTransform: 'uppercase', letterSpacing: 1 },
+  textModalBody: { fontSize: F.lg, lineHeight: 32, color: C.onSurface },
 
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 },
   emptyEmoji: { fontSize: 40, marginBottom: 10 },

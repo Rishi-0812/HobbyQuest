@@ -60,11 +60,9 @@ public class CommunityController {
 
     @PostMapping("/community/posts")
     public ResponseEntity<?> create(@RequestBody CommunityPostRequest request, @AuthenticationPrincipal User currentUser) {
-        if (request == null) throw new RuntimeException("Request body is required");
-        boolean hasImage = request.getImageUrl() != null && !request.getImageUrl().isBlank();
-        boolean hasText = request.getPostText() != null && !request.getPostText().isBlank();
-        if (!hasImage && !hasText) {
-            throw new RuntimeException("Add a photo or write something before sharing.");
+        String validationError = validateContent(request);
+        if (validationError != null) {
+            return ResponseEntity.badRequest().body(Map.of("message", validationError));
         }
 
         CommunityPost saved = postRepository.save(CommunityPost.builder()
@@ -82,25 +80,37 @@ public class CommunityController {
 
     @PatchMapping("/community/posts/{id}")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody CommunityPostRequest request, @AuthenticationPrincipal User currentUser) {
+        String validationError = validateContent(request);
+        if (validationError != null) {
+            return ResponseEntity.badRequest().body(Map.of("message", validationError));
+        }
         CommunityPost post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
         if (!currentUser.getId().equals(post.getUserId())) {
             throw new RuntimeException("You can only replace your own post");
         }
-        if (request.getImageUrl() != null) post.setImageUrl(request.getImageUrl());
-        if (request.getPostText() != null) post.setPostText(request.getPostText());
+        post.setImageUrl(request.getImageUrl());
+        post.setPostText(request.getPostText());
         if (request.getCaption() != null) post.setCaption(request.getCaption());
         if (request.getProjectId() != null) post.setProjectId(request.getProjectId());
         if (request.getHobbyId() != null) post.setHobbyId(request.getHobbyId());
         if (request.getPostType() != null) post.setPostType(request.getPostType());
 
-        boolean hasImage = post.getImageUrl() != null && !post.getImageUrl().isBlank();
-        boolean hasText = post.getPostText() != null && !post.getPostText().isBlank();
-        if (!hasImage && !hasText) {
-            throw new RuntimeException("Add a photo or write something before sharing.");
-        }
-
         CommunityPost saved = postRepository.save(post);
         return ResponseEntity.ok(Map.of("id", saved.getId(), "message", "Post updated"));
+    }
+
+    private String validateContent(CommunityPostRequest request) {
+        if (request == null) {
+            return "Request body is required.";
+        }
+        boolean hasImage = request.getImageUrl() != null && !request.getImageUrl().isBlank();
+        boolean hasText = request.getPostText() != null && !request.getPostText().isBlank();
+        if (hasImage == hasText) {
+            return hasImage
+                    ? "Choose either a photo or a written piece, not both."
+                    : "Add a photo or write a written piece before sharing.";
+        }
+        return null;
     }
 }

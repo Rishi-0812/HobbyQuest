@@ -154,6 +154,7 @@ export default function ActiveProjectScreen({ route, navigation }) {
       totalUnits: targetCount,
       hobbyId: params.hobbyId,
       hobbyName: params.hobbyName,
+      readOnly: Boolean(active?.isComplete),
     });
   }
 
@@ -220,7 +221,7 @@ export default function ActiveProjectScreen({ route, navigation }) {
             <Text style={s.completeBannerEmoji}>🏆</Text>
             <View style={layout.fill}>
               <Text style={s.completeBannerTitle}>Project complete!</Text>
-              <Text style={s.completeBannerSub}>Tap to view your stats and share your win</Text>
+              <Text style={s.completeBannerSub}>View your final stats and shared content.</Text>
             </View>
             <Text style={s.completeBannerArrow}>›</Text>
           </TouchableOpacity>

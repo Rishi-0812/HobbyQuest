@@ -107,6 +107,7 @@ export default function RoadmapCompletionScreen({ route, navigation }) {
         hobbyId,
         postType: 'roadmap_completion',
         caption:  caption.trim() || `Just completed the full ${hobbyName} roadmap on HobbyQuest! 🏆`,
+        postText: `Completed the full ${hobbyName} roadmap.`,
       });
       setShared(true);
       Alert.alert(

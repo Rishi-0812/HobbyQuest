@@ -62,6 +62,26 @@ function ProjectSection({ title, projects, onEnrol, onResume, canEnrol }) {
   );
 }
 
+function CompletedProjectCard({ project, onPress }) {
+  return (
+    <TouchableOpacity activeOpacity={0.85} style={[s.projectCard, s.completedProjectCard]} onPress={() => onPress(project)}>
+      <View style={s.projectTop}>
+        <Text style={s.projectTitle} numberOfLines={2}>{project.name}</Text>
+        <View style={[badge.base, s.completedBadge]}>
+          <Text style={s.completedBadgeText}>✅ Completed</Text>
+        </View>
+      </View>
+      <Text style={s.projectDesc} numberOfLines={2}>{project.description || 'A completed creative challenge.'}</Text>
+      <View style={s.metaRow}>
+        <View style={[badge.base, badge.passion]}>
+          <Text style={[badge.text, badge.passionText]}>{project.targetCount} {project.unitLabel || 'unit'}{project.targetCount === 1 ? '' : 's'}</Text>
+        </View>
+      </View>
+      <Text style={s.completedAction}>View completion</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function PassionHomeScreen({ route, navigation }) {
   const { hobbyId, hobbyName } = route.params;
   const [projects, setProjects] = useState([]);
@@ -70,6 +90,7 @@ export default function PassionHomeScreen({ route, navigation }) {
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [completedExpanded, setCompletedExpanded] = useState(false);
 
   const accent = getHobbyAccent(hobbyId);
 
@@ -96,7 +117,7 @@ export default function PassionHomeScreen({ route, navigation }) {
     [projects]
   );
   const completedProjects = useMemo(
-    () => projects.filter(p => p.isEnrolled && p.status === 'COMPLETED'),
+    () => projects.filter(p => p.status === 'COMPLETED'),
     [projects]
   );
   const [globalActiveCount, setGlobalActiveCount] = useState(0);
@@ -134,9 +155,9 @@ export default function PassionHomeScreen({ route, navigation }) {
   const otherHobbyActiveCount = Math.max(0, globalActiveCount - activeCount);
 
   const grouped = useMemo(() => ({
-    admin: projects.filter(p => p.source === 'admin'),
-    community: projects.filter(p => p.source === 'community'),
-    custom: projects.filter(p => p.source === 'custom'),
+    admin: projects.filter(p => p.source === 'admin' && !p.isEnrolled && p.status !== 'COMPLETED'),
+    community: projects.filter(p => p.source === 'community' && !p.isEnrolled && p.status !== 'COMPLETED'),
+    custom: projects.filter(p => p.source === 'custom' && !p.isEnrolled && p.status !== 'COMPLETED'),
   }), [projects]);
 
   function goActive(project) {
@@ -238,7 +259,9 @@ function reportIssue() {
           <View style={layout.fill}>
             <Text style={header.titleLarge}>{hobbyName}</Text>
             <Text style={header.subtitle}>Choose your next project</Text>
-            <Text style={s.activeCount}>Active projects: {globalActiveCount}/2</Text>
+            <View style={s.activeCountPill}>
+              <Text style={s.activeCount}>Active projects: {globalActiveCount}/2</Text>
+            </View>
             {otherHobbyActiveCount > 0 ? (
               <Text style={s.activeNote}>{otherHobbyActiveCount} more active in another hobby</Text>
             ) : null}
@@ -269,25 +292,6 @@ function reportIssue() {
           </View>
         ) : null}
 
-        {completedProjects.length > 0 ? (
-          <View style={s.activeSection}>
-            <View style={section.header}><Text style={section.title}>Completed Projects</Text></View>
-            {completedProjects.map(project => (
-              <TouchableOpacity
-                key={project.id}
-                activeOpacity={0.85}
-                style={[card.hero, s.resume]}
-                onPress={() => goCompleted(project)}
-              >
-                <Text style={s.kicker}>Finished</Text>
-                <Text style={s.resumeTitle}>{project.name}</Text>
-                <Text style={s.resumeMeta}>{project.targetCount} {project.unitLabel || 'unit'} goal</Text>
-                <Text style={s.resumeAction}>View</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
-
         {!projects.length ? (
           <EmptyState emoji="🎨" title="No projects yet" subtitle="Create the first project for this passion hobby." />
         ) : null}
@@ -295,6 +299,26 @@ function reportIssue() {
         <ProjectSection title="Suggested Projects" projects={grouped.admin} onEnrol={enrol} onResume={goActive} canEnrol={globalActiveCount < 2} />
         <ProjectSection title="Community Projects" projects={grouped.community} onEnrol={enrol} onResume={goActive} canEnrol={globalActiveCount < 2} />
         <ProjectSection title="Your Custom Projects" projects={grouped.custom} onEnrol={enrol} onResume={goActive} canEnrol={globalActiveCount < 2} />
+
+        {completedProjects.length > 0 ? (
+          <View style={s.completedSection}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={section.header}
+              onPress={() => setCompletedExpanded(value => !value)}
+            >
+              <Text style={section.title}>Completed Projects</Text>
+              <Text style={s.completedToggle}>{completedExpanded ? 'Hide' : `Show ${completedProjects.length}`}</Text>
+            </TouchableOpacity>
+            {completedExpanded ? (
+              <View style={s.completedRow}>
+                {completedProjects.map(project => (
+                  <CompletedProjectCard key={project.id} project={project} onPress={goCompleted} />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <PrimaryButton
           label="Create your own project"
@@ -346,9 +370,17 @@ const s = StyleSheet.create({
   metaRow: { flexDirection: 'row', marginVertical: 12 },
   cardBtn: { height: 44, marginTop: 12 },
   createBtn: { marginTop: 4 },
-  activeCount: { fontSize: F.sm, color: C.onSurfaceVariant, marginTop: 6 },
+  activeCountPill: { alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: R.full, backgroundColor: C.passionLight },
+  activeCount: { fontSize: F.sm, color: C.passion, fontWeight: '800' },
   activeNote: { fontSize: F.xs, color: C.passion, fontWeight: '700', marginTop: 3 },
   disabledHint: { marginTop: 8, color: C.onSurfaceVariant, fontSize: F.xs },
+  completedSection: { marginTop: 4, marginBottom: 18 },
+  completedRow: { gap: 12 },
+  completedToggle: { color: C.passion, fontSize: F.sm, fontWeight: '800' },
+  completedProjectCard: { opacity: 0.78, borderColor: C.almostThere + '80', backgroundColor: C.surfaceContainerLow },
+  completedBadge: { backgroundColor: C.almostThereLight },
+  completedBadgeText: { color: '#78350F', fontSize: F.xs, fontWeight: '800' },
+  completedAction: { alignSelf: 'flex-end', color: C.onSurfaceVariant, fontSize: F.sm, fontWeight: '800', marginTop: 4 },
 
   // Small self-contained pill instead of a full-width underlined link
   unenrollBtn: {

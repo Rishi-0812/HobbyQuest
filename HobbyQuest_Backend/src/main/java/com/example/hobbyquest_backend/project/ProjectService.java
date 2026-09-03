@@ -40,7 +40,8 @@ public class ProjectService {
     private static final int MAX_ACTIVE_PROJECTS = 2;
 
     private void checkActiveProjectCap(Long userId) {
-        List<UserProjectProgress> activeProgress = progressRepository.findByUserIdAndStatus(userId, "ACTIVE");
+        List<UserProjectProgress> activeProgress = progressRepository
+                .findByUserIdAndStatusAndIsCompleteFalse(userId, "ACTIVE");
         if (activeProgress.size() >= MAX_ACTIVE_PROJECTS) {
             String names = activeProgress.stream()
                     .map(p -> projectRepository.findById(p.getProjectId()).map(Project::getName).orElse("a project"))
@@ -341,7 +342,10 @@ public class ProjectService {
     }
 
     private ProjectResponse toResponse(Project project, UserProjectProgress progress) {
-        boolean activelyEnrolled = progress != null && "ACTIVE".equals(progress.getStatus());
+        String progressStatus = progress == null
+                ? null
+                : (Boolean.TRUE.equals(progress.getIsComplete()) ? "COMPLETED" : progress.getStatus());
+        boolean activelyEnrolled = "ACTIVE".equals(progressStatus);
         return ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
@@ -354,7 +358,7 @@ public class ProjectService {
                 .isEnrolled(activelyEnrolled)
                 .currentCount(progress != null ? progress.getCurrentCount() : 0)
                 .progressId(progress != null ? progress.getId() : null)
-                .status(progress != null ? progress.getStatus() : null)
+                .status(progressStatus)
                 .startedAt(progress != null ? progress.getStartedAt() : null)
                 .build();
     }
