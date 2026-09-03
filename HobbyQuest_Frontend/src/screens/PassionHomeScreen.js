@@ -95,7 +95,43 @@ export default function PassionHomeScreen({ route, navigation }) {
     () => projects.filter(p => p.isEnrolled && p.status === 'ACTIVE'),
     [projects]
   );
+  const completedProjects = useMemo(
+    () => projects.filter(p => p.isEnrolled && p.status === 'COMPLETED'),
+    [projects]
+  );
+  const [globalActiveCount, setGlobalActiveCount] = useState(0);
+
+  useEffect(() => {
+    async function loadGlobalActiveCount() {
+      try {
+        const { data: hobbies } = await api.get('/hobbies?type=passion');
+        if (!Array.isArray(hobbies) || hobbies.length === 0) {
+          setGlobalActiveCount(activeProjects.length);
+          return;
+        }
+        const counts = await Promise.all(
+          hobbies.map(async (hobby) => {
+            try {
+              const { data: hobbyProjects } = await api.get(`/hobbies/${hobby.id}/projects`);
+              const activeForHobby = Array.isArray(hobbyProjects)
+                ? hobbyProjects.filter(project => project.isEnrolled && project.status === 'ACTIVE').length
+                : 0;
+              return activeForHobby;
+            } catch {
+              return 0;
+            }
+          })
+        );
+        setGlobalActiveCount(counts.reduce((sum, count) => sum + count, 0));
+      } catch {
+        setGlobalActiveCount(activeProjects.length);
+      }
+    }
+    loadGlobalActiveCount();
+  }, [activeProjects.length, hobbyId]);
+
   const activeCount = activeProjects.length;
+  const otherHobbyActiveCount = Math.max(0, globalActiveCount - activeCount);
 
   const grouped = useMemo(() => ({
     admin: projects.filter(p => p.source === 'admin'),
@@ -111,6 +147,19 @@ export default function PassionHomeScreen({ route, navigation }) {
       targetCount: project.targetCount,
       hobbyId,
       hobbyName,
+    });
+  }
+
+  function goCompleted(project) {
+    navigation.navigate('ProjectCompletion', {
+      progressId: project.progressId,
+      projectId: project.id,
+      projectName: project.name,
+      unitLabel: project.unitLabel,
+      totalUnits: project.targetCount,
+      hobbyId,
+      hobbyName,
+      readOnly: true,
     });
   }
 
@@ -189,7 +238,10 @@ function reportIssue() {
           <View style={layout.fill}>
             <Text style={header.titleLarge}>{hobbyName}</Text>
             <Text style={header.subtitle}>Choose your next project</Text>
-            <Text style={s.activeCount}>Active projects: {activeCount}/2</Text>
+            <Text style={s.activeCount}>Active projects: {globalActiveCount}/2</Text>
+            {otherHobbyActiveCount > 0 ? (
+              <Text style={s.activeNote}>{otherHobbyActiveCount} more active in another hobby</Text>
+            ) : null}
           </View>
         </View>
       </View>
@@ -217,13 +269,32 @@ function reportIssue() {
           </View>
         ) : null}
 
+        {completedProjects.length > 0 ? (
+          <View style={s.activeSection}>
+            <View style={section.header}><Text style={section.title}>Completed Projects</Text></View>
+            {completedProjects.map(project => (
+              <TouchableOpacity
+                key={project.id}
+                activeOpacity={0.85}
+                style={[card.hero, s.resume]}
+                onPress={() => goCompleted(project)}
+              >
+                <Text style={s.kicker}>Finished</Text>
+                <Text style={s.resumeTitle}>{project.name}</Text>
+                <Text style={s.resumeMeta}>{project.targetCount} {project.unitLabel || 'unit'} goal</Text>
+                <Text style={s.resumeAction}>View</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
         {!projects.length ? (
           <EmptyState emoji="🎨" title="No projects yet" subtitle="Create the first project for this passion hobby." />
         ) : null}
 
-        <ProjectSection title="Suggested Projects" projects={grouped.admin} onEnrol={enrol} onResume={goActive} canEnrol={activeCount < 2} />
-        <ProjectSection title="Community Projects" projects={grouped.community} onEnrol={enrol} onResume={goActive} canEnrol={activeCount < 2} />
-        <ProjectSection title="Your Custom Projects" projects={grouped.custom} onEnrol={enrol} onResume={goActive} canEnrol={activeCount < 2} />
+        <ProjectSection title="Suggested Projects" projects={grouped.admin} onEnrol={enrol} onResume={goActive} canEnrol={globalActiveCount < 2} />
+        <ProjectSection title="Community Projects" projects={grouped.community} onEnrol={enrol} onResume={goActive} canEnrol={globalActiveCount < 2} />
+        <ProjectSection title="Your Custom Projects" projects={grouped.custom} onEnrol={enrol} onResume={goActive} canEnrol={globalActiveCount < 2} />
 
         <PrimaryButton
           label="Create your own project"
@@ -276,6 +347,7 @@ const s = StyleSheet.create({
   cardBtn: { height: 44, marginTop: 12 },
   createBtn: { marginTop: 4 },
   activeCount: { fontSize: F.sm, color: C.onSurfaceVariant, marginTop: 6 },
+  activeNote: { fontSize: F.xs, color: C.passion, fontWeight: '700', marginTop: 3 },
   disabledHint: { marginTop: 8, color: C.onSurfaceVariant, fontSize: F.xs },
 
   // Small self-contained pill instead of a full-width underlined link

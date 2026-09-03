@@ -10,8 +10,10 @@ public class CommunityPostResponse {
     private String posterName;
     private Long hobbyId;
     private String hobbyName;
+    private Long projectId;
     private String postType;
     private String caption;
     private String imageUrl;
+    private String postText;
     private LocalDateTime createdAt;
 }

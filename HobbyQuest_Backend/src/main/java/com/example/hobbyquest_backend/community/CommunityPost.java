@@ -31,6 +31,12 @@ public class CommunityPost {
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
+    @Column(name = "post_text", columnDefinition = "TEXT")
+    private String postText;
+
+    @Column(name = "project_id")
+    private Long projectId;
+
     @Column(name = "is_approved")
     @Builder.Default
     private Boolean isApproved = false;

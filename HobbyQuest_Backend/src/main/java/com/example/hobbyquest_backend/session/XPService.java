@@ -11,10 +11,20 @@ public class XPService {
 
     private final UserRepository userRepository;
 
-    private static final int[] LEVEL_XP = {
-            0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200,
-            4000, 4800, 5600, 6400, 7200
-    };
+    private static final int[] LEVEL_XP = buildLevelThresholds(50);
+
+    private static int[] buildLevelThresholds(int levelCount) {
+        int[] thresholds = new int[levelCount + 1];
+        thresholds[0] = 0;
+        for (int n = 1; n <= levelCount; n++) {
+            thresholds[n] = 50 * n * (n + 1);
+        }
+        return thresholds;
+    }
+
+    static {
+        System.out.println("LEVEL_XP=" + java.util.Arrays.toString(LEVEL_XP));
+    }
 
     public static final int STREAK_7_BONUS  = 100;
     public static final int STREAK_30_BONUS = 500;
@@ -59,6 +69,6 @@ public class XPService {
         for (int i = 0; i < LEVEL_XP.length; i++) {
             if (xp >= LEVEL_XP[i]) level = i + 1;
         }
-        return level;
+        return Math.min(level, 50);
     }
 }

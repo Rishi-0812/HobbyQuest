@@ -5,7 +5,7 @@
 // Layout: navy completion hero, animated trophy, stats, optional caption + photo share.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, R, SHADOW } from '../theme';
 import { PrimaryButton } from '../components/components';
@@ -14,6 +14,7 @@ import api from '../services/api';
 import { getHobbyEmoji } from '../constants/hobbyEmojis';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 import { pickOrCaptureImage } from '../services/imagePicker';
+import SlideToast from '../components/SlideToast';
 
 function StatTile({ label, value }) {
   return (
@@ -28,11 +29,15 @@ export default function ProjectCompletionScreen({ route, navigation }) {
   const params = route.params;
   const scale = useRef(new Animated.Value(0.7)).current;
   const [caption, setCaption] = useState('');
-  const [imageUri, setImageUri] = useState(null);   // local preview URI, before upload
+  const [postText, setPostText] = useState('');
+  const [imageUri, setImageUri] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [message, setMessage] = useState('');
   const [loadingStats, setLoadingStats] = useState(true);
+  const [existingPost, setExistingPost] = useState(null);
+  const [replaceMode, setReplaceMode] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
   const [stats, setStats] = useState({
     totalUnits: params.totalUnits ?? 0,
     sessionsLogged: 0,
@@ -69,6 +74,25 @@ export default function ProjectCompletionScreen({ route, navigation }) {
     return () => { cancelled = true; };
   }, [params.progressId]);
 
+useEffect(() => {
+  if (!params.projectId) return;
+  async function loadExistingShare() {
+    try {
+      const { data } = await api.get('/community/posts', { params: { project_id: params.projectId } });
+      const match = Array.isArray(data) && data.length ? data[0] : null;
+      if (match) {
+        setExistingPost(match);
+        setCaption(match.caption || '');
+        setPostText(match.postText || '');
+        setImageUri(match.imageUrl || null);
+      }
+    } catch {
+      // no existing share yet
+    }
+  }
+  loadExistingShare();
+}, [params.projectId]);
+
 async function pickImage() {
   const uri = await pickOrCaptureImage();
   if (uri) setImageUri(uri);
@@ -90,20 +114,36 @@ async function pickImage() {
         setUploading(false);
       }
 
-      await api.post('/community/posts', {
+      const payload = {
         hobbyId: params.hobbyId,
+        projectId: params.projectId,
         postType: 'project_completion',
         caption: caption.trim() || `Completed ${params.projectName}!`,
-        imageUrl: uploadedUrl,
-      });
+        imageUrl: uploadedUrl || (existingPost?.imageUrl ?? null),
+        postText: postText.trim() || null,
+      };
+
+      if (existingPost && existingPost.id) {
+        await api.patch(`/community/posts/${existingPost.id}`, payload);
+      } else {
+        await api.post('/community/posts', payload);
+      }
+
       setMessage('Shared to the moderation queue.');
+      setToastVisible(true);
+      setTimeout(() => {
+        setToastVisible(false);
+        if (!params.readOnly) navigation.navigate('AppTabs', { screen: 'Dashboard' });
+      }, 1200);
     } catch (err) {
       setUploading(false);
-      setMessage(err.message || 'Could not share right now.');
+      setMessage(err.response?.data?.message || err.message || 'Could not share right now.');
     } finally {
       setSharing(false);
     }
   }
+
+  const showShareForm = !params.readOnly && !(existingPost && !replaceMode);
 
   return (
     <SafeAreaView style={layout.root}>
@@ -121,6 +161,8 @@ async function pickImage() {
         </Text>
       </View>
 
+      <SlideToast visible={toastVisible} message="Shared to community" emoji="✅" color={C.primaryContainer} />
+
       <ScrollView contentContainerStyle={layout.scrollContentPb} showsVerticalScrollIndicator={false}>
         {loadingStats ? (
           <ActivityIndicator color={C.primaryContainer} style={{ marginBottom: 16 }} />
@@ -132,45 +174,73 @@ async function pickImage() {
           </View>
         )}
 
-        <View style={[card.hero, s.shareCard]}>
-          <Text style={s.shareTitle}>Share your win</Text>
-          <Text style={s.shareText}>
-            Pick a favorite to share — not everything, just the one you're proudest of. Add a short caption for the community feed. Posts appear after admin approval.
-          </Text>
+        {existingPost && !params.readOnly && !replaceMode ? (
+          <View style={[card.hero, s.shareCard]}>
+            <Text style={s.shareTitle}>You already shared this one</Text>
+            {existingPost.imageUrl ? <Image source={{ uri: existingPost.imageUrl }} style={s.imagePreview} resizeMode="cover" /> : null}
+            {existingPost.postText ? <Text style={s.previewText}>{existingPost.postText}</Text> : null}
+            <PrimaryButton label="Replace" color={C.primaryContainer} onPress={() => setReplaceMode(true)} />
+          </View>
+        ) : null}
 
-          {imageUri ? (
-            <View style={s.imagePreviewWrap}>
-              <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
-              <TouchableOpacity onPress={removeImage} style={s.removeImageBtn}>
-                <Text style={s.removeImageText}>Remove</Text>
+        {showShareForm ? (
+          <View style={[card.hero, s.shareCard]}>
+            <Text style={s.shareTitle}>Share your win</Text>
+            <Text style={s.shareText}>
+              Pick a favorite to share — not everything, just the one you're proudest of. Add a short caption for the community feed. Posts appear after admin approval.
+            </Text>
+
+            {imageUri ? (
+              <View style={s.imagePreviewWrap}>
+                <Image source={{ uri: imageUri }} style={s.imagePreview} resizeMode="cover" />
+                <TouchableOpacity onPress={removeImage} style={s.removeImageBtn}>
+                  <Text style={s.removeImageText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={pickImage} style={s.pickImageBtn}>
+                <Text style={s.pickImageEmoji}>🖼️</Text>
+                <Text style={s.pickImageText}>Add a photo (optional)</Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={pickImage} style={s.pickImageBtn}>
-              <Text style={s.pickImageEmoji}>🖼️</Text>
-              <Text style={s.pickImageText}>Add a photo (optional)</Text>
-            </TouchableOpacity>
-          )}
+            )}
 
-          <TextInput
-            style={s.caption}
-            value={caption}
-            onChangeText={value => setCaption(value.slice(0, 150))}
-            placeholder="What did this project teach you?"
-            placeholderTextColor={C.outline}
-            multiline
-          />
-          {message ? <Text style={s.message}>{message}</Text> : null}
-          <PrimaryButton
-            label={uploading ? 'Uploading photo…' : 'Share to Community'}
-            color={C.primaryContainer}
-            onPress={share}
-            loading={sharing}
-          />
-          <TouchableOpacity onPress={() => navigation.navigate('AppTabs')} style={s.skipLink}>
-            <Text style={s.skipLinkText}>Skip sharing</Text>
-          </TouchableOpacity>
-        </View>
+            <TextInput
+              style={s.caption}
+              value={caption}
+              onChangeText={value => setCaption(value.slice(0, 150))}
+              placeholder="What did this project teach you?"
+              placeholderTextColor={C.outline}
+              multiline
+            />
+
+            <TextInput
+              style={s.postTextInput}
+              value={postText}
+              onChangeText={value => setPostText(value.slice(0, 1000))}
+              placeholder="Write it out — a poem, a reflection, or a short story"
+              placeholderTextColor={C.outline}
+              multiline
+            />
+
+            {message ? <Text style={s.message}>{message}</Text> : null}
+            <PrimaryButton
+              label={uploading ? 'Uploading photo…' : existingPost ? 'Update community post' : 'Share to Community'}
+              color={C.primaryContainer}
+              onPress={share}
+              loading={sharing}
+            />
+            <TouchableOpacity onPress={() => navigation.navigate('AppTabs')} style={s.skipLink}>
+              <Text style={s.skipLinkText}>Skip sharing</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {params.readOnly ? (
+          <View style={[card.hero, s.shareCard]}>
+            <Text style={s.shareTitle}>Completed project</Text>
+            <Text style={s.shareText}>This project is complete and viewable as a historical milestone.</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity style={s.backHome} onPress={() => navigation.navigate('AppTabs')}>
           <Text style={s.backHomeText}>Back to Dashboard</Text>
@@ -211,6 +281,8 @@ const s = StyleSheet.create({
   },
   removeImageText: { color: C.white, fontSize: F.xs, fontWeight: '700' },
   caption: { minHeight: 94, borderRadius: R.lg, borderWidth: 1.5, borderColor: C.outlineVariant, padding: 14, textAlignVertical: 'top', color: C.onSurface, backgroundColor: C.surfaceContainerLow },
+  postTextInput: { minHeight: 150, borderRadius: R.lg, borderWidth: 1.5, borderColor: C.outlineVariant, padding: 14, textAlignVertical: 'top', color: C.onSurface, backgroundColor: C.surfaceContainerLow },
+  previewText: { color: C.onSurface, fontSize: F.sm, lineHeight: 20 },
   message: { color: C.primaryContainer, fontSize: F.sm, fontWeight: '700' },
   skipLink: { alignItems: 'center', paddingTop: 4 },
   skipLinkText: { color: C.onSurfaceVariant, fontSize: F.sm, fontWeight: '600', textDecorationLine: 'underline' },

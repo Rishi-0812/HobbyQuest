@@ -1,5 +1,6 @@
 package com.example.hobbyquest_backend.hobby;
 
+import com.example.hobbyquest_backend.progress.UserProjectProgressRepository;
 import com.example.hobbyquest_backend.user.User;
 import com.example.hobbyquest_backend.user.UserPreferences;
 import com.example.hobbyquest_backend.user.UserPreferencesRepository;
@@ -17,6 +18,7 @@ public class HobbyService {
     private final HobbyRepository              hobbyRepository;
     private final UserHobbyEnrolmentRepository enrolmentRepository;
     private final UserPreferencesRepository    preferencesRepository;
+    private final UserProjectProgressRepository progressRepository;
 
     // Convert entity to response DTO
     private HobbyResponse toResponse(Hobby hobby, Long userId) {
@@ -164,8 +166,12 @@ public class HobbyService {
 
         enrolment.setStatus("UNENROLLED");
         enrolmentRepository.save(enrolment);
-        // Deliberately does NOT touch user_skill_progress or user_project_progress —
-        // history is preserved in case the user re-enrols later.
+
+        progressRepository.findByUserIdAndHobbyIdAndStatus(userId, hobbyId, "ACTIVE")
+                .forEach(progress -> {
+                    progress.setStatus("ABANDONED");
+                    progressRepository.save(progress);
+                });
     }
 
     // GET enrolled hobbies for a user — active only

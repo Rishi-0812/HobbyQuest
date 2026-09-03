@@ -122,20 +122,29 @@ export const SHADOW = {
 };
 
 // XP level thresholds
-const LEVEL_XP = [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200, 4000, 4800, 5600, 6400, 7200];
+function buildLevelThresholds(levelCount) {
+  const thresholds = [0];
+  for (let n = 1; n <= levelCount; n++) {
+    thresholds.push(50 * n * (n + 1));
+  }
+  return thresholds;
+}
+
+const LEVEL_XP = buildLevelThresholds(50);
+console.log('LEVEL_XP', LEVEL_XP);
 
 export function getLevel(xp) {
   let level = 1;
   for (let i = 0; i < LEVEL_XP.length; i++) {
     if (xp >= LEVEL_XP[i]) level = i + 1;
   }
-  return level;
+  return Math.min(level, 50);
 }
 
 export function getXPProgress(xp) {
-  const level   = getLevel(xp);
+  const level = getLevel(xp);
   const current = LEVEL_XP[level - 1] ?? 0;
-  const next    = LEVEL_XP[level];
+  const next = LEVEL_XP[level];
 
   if (next === undefined) {
     return { level, progress: 1, xpToNext: 0 };
@@ -143,7 +152,7 @@ export function getXPProgress(xp) {
 
   return {
     level,
-    progress: (xp - current) / (next - current),
-    xpToNext: next - xp,
+    progress: Math.max(0, Math.min(1, (xp - current) / (next - current))),
+    xpToNext: Math.max(0, next - xp),
   };
 }

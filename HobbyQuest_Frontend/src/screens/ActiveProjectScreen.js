@@ -148,6 +148,7 @@ export default function ActiveProjectScreen({ route, navigation }) {
   function goToCompletion() {
     navigation.navigate('ProjectCompletion', {
       progressId: params.progressId,
+      projectId: active?.projectId ?? params.projectId,
       projectName: active?.projectName ?? params.projectName,
       unitLabel,
       totalUnits: targetCount,

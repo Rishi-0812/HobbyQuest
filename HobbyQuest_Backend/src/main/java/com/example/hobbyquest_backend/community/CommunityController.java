@@ -21,10 +21,20 @@ public class CommunityController {
     private final HobbyRepository hobbyRepository;
 
     @GetMapping("/community/posts")
-    public ResponseEntity<?> approved(@RequestParam(name = "hobby_id", required = false) Long hobbyId) {
-        List<CommunityPost> posts = hobbyId == null
-                ? postRepository.findByIsApprovedTrueOrderByCreatedAtDesc()
-                : postRepository.findByIsApprovedTrueAndHobbyIdOrderByCreatedAtDesc(hobbyId);
+    public ResponseEntity<?> approved(
+            @RequestParam(name = "hobby_id", required = false) Long hobbyId,
+            @RequestParam(name = "project_id", required = false) Long projectId,
+            @AuthenticationPrincipal User currentUser) {
+        List<CommunityPost> posts;
+        if (projectId != null && currentUser != null) {
+            posts = postRepository.findByProjectIdAndUserId(projectId, currentUser.getId()).map(List::of).orElse(List.of());
+        } else if (projectId != null) {
+            posts = postRepository.findByIsApprovedTrueAndProjectIdOrderByCreatedAtDesc(projectId);
+        } else if (hobbyId == null) {
+            posts = postRepository.findByIsApprovedTrueOrderByCreatedAtDesc();
+        } else {
+            posts = postRepository.findByIsApprovedTrueAndHobbyIdOrderByCreatedAtDesc(hobbyId);
+        }
 
         List<CommunityPostResponse> response = posts.stream().map(post -> {
             String name = userRepository.findById(post.getUserId()).map(User::getName).orElse("A HobbyQuest user");
@@ -36,9 +46,11 @@ public class CommunityController {
                     .posterName(name)
                     .hobbyId(post.getHobbyId())
                     .hobbyName(hobbyName)
+                    .projectId(post.getProjectId())
                     .postType(post.getPostType())
                     .caption(post.getCaption())
                     .imageUrl(post.getImageUrl())
+                    .postText(post.getPostText())
                     .createdAt(post.getCreatedAt())
                     .build();
         }).toList();
@@ -48,14 +60,47 @@ public class CommunityController {
 
     @PostMapping("/community/posts")
     public ResponseEntity<?> create(@RequestBody CommunityPostRequest request, @AuthenticationPrincipal User currentUser) {
+        if (request == null) throw new RuntimeException("Request body is required");
+        boolean hasImage = request.getImageUrl() != null && !request.getImageUrl().isBlank();
+        boolean hasText = request.getPostText() != null && !request.getPostText().isBlank();
+        if (!hasImage && !hasText) {
+            throw new RuntimeException("Add a photo or write something before sharing.");
+        }
+
         CommunityPost saved = postRepository.save(CommunityPost.builder()
                 .userId(currentUser.getId())
                 .hobbyId(request.getHobbyId())
+                .projectId(request.getProjectId())
                 .postType(request.getPostType() == null ? "project_completion" : request.getPostType())
                 .caption(request.getCaption())
                 .imageUrl(request.getImageUrl())
+                .postText(request.getPostText())
                 .isApproved(false)
                 .build());
         return ResponseEntity.ok(Map.of("id", saved.getId(), "message", "Post submitted for approval"));
+    }
+
+    @PatchMapping("/community/posts/{id}")
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody CommunityPostRequest request, @AuthenticationPrincipal User currentUser) {
+        CommunityPost post = postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
+        if (!currentUser.getId().equals(post.getUserId())) {
+            throw new RuntimeException("You can only replace your own post");
+        }
+        if (request.getImageUrl() != null) post.setImageUrl(request.getImageUrl());
+        if (request.getPostText() != null) post.setPostText(request.getPostText());
+        if (request.getCaption() != null) post.setCaption(request.getCaption());
+        if (request.getProjectId() != null) post.setProjectId(request.getProjectId());
+        if (request.getHobbyId() != null) post.setHobbyId(request.getHobbyId());
+        if (request.getPostType() != null) post.setPostType(request.getPostType());
+
+        boolean hasImage = post.getImageUrl() != null && !post.getImageUrl().isBlank();
+        boolean hasText = post.getPostText() != null && !post.getPostText().isBlank();
+        if (!hasImage && !hasText) {
+            throw new RuntimeException("Add a photo or write something before sharing.");
+        }
+
+        CommunityPost saved = postRepository.save(post);
+        return ResponseEntity.ok(Map.of("id", saved.getId(), "message", "Post updated"));
     }
 }

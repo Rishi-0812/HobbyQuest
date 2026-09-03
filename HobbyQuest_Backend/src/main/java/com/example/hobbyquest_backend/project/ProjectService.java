@@ -39,6 +39,16 @@ public class ProjectService {
 
     private static final int MAX_ACTIVE_PROJECTS = 2;
 
+    private void checkActiveProjectCap(Long userId) {
+        List<UserProjectProgress> activeProgress = progressRepository.findByUserIdAndStatus(userId, "ACTIVE");
+        if (activeProgress.size() >= MAX_ACTIVE_PROJECTS) {
+            String names = activeProgress.stream()
+                    .map(p -> projectRepository.findById(p.getProjectId()).map(Project::getName).orElse("a project"))
+                    .collect(Collectors.joining(", "));
+            throw new RuntimeException("You already have 2 active projects (" + names + "). Complete or abandon one before starting another.");
+        }
+    }
+
     public List<ProjectResponse> getProjectsForHobby(Long hobbyId, Long userId) {
         Map<Long, UserProjectProgress> progressByProject = progressRepository
                 .findByUserIdAndHobbyId(userId, hobbyId)
@@ -60,20 +70,14 @@ public class ProjectService {
             if ("ACTIVE".equals(progress.getStatus())) {
                 return progress.getId();
             }
-            int active = progressRepository.countByUserIdAndStatus(userId, "ACTIVE");
-            if (active >= MAX_ACTIVE_PROJECTS) {
-                throw new RuntimeException("You already have 2 active projects. Complete or abandon one before starting another.");
-            }
+            checkActiveProjectCap(userId);
             progress.setStatus("ACTIVE");
             progress.setStartedAt(LocalDateTime.now());
             progressRepository.save(progress);
             return progress.getId();
         }
 
-        int active = progressRepository.countByUserIdAndStatus(userId, "ACTIVE");
-        if (active >= MAX_ACTIVE_PROJECTS) {
-            throw new RuntimeException("You already have 2 active projects. Complete or abandon one before starting another.");
-        }
+        checkActiveProjectCap(userId);
 
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
@@ -92,11 +96,7 @@ public class ProjectService {
     @Transactional
     public CustomProjectResponse createCustomProject(CustomProjectRequest req, Long userId) {
         validateCustomProject(req);
-
-        int active = progressRepository.countByUserIdAndStatus(userId, "ACTIVE");
-        if (active >= MAX_ACTIVE_PROJECTS) {
-            throw new RuntimeException("You already have 2 active projects. Complete or abandon one before starting another.");
-        }
+        checkActiveProjectCap(userId);
 
         List<Project> suggestions = projectRepository.findSimilarByHobbyAndName(req.getHobbyId(), req.getName().trim());
         if (!suggestions.isEmpty() && !Boolean.TRUE.equals(req.getForceCreate())) {
@@ -260,7 +260,10 @@ public class ProjectService {
         int unitXp = appliedUnits * unitXpEach;
         if (unitXp > 0) {
             xpService.addXP(user, unitXp);
-            String unitHighlight = appliedUnits + " " + (appliedUnits == 1 ? project.getUnitLabel() : project.getUnitLabelPlural()) + " completed";
+            String label = appliedUnits == 1
+                    ? (project.getUnitLabel() != null ? project.getUnitLabel() : "unit")
+                    : (project.getUnitLabelPlural() != null ? project.getUnitLabelPlural() : "units");
+            String unitHighlight = appliedUnits + " " + label + " completed";
             breakdown.add(new XpBreakdownItem(unitHighlight, unitXp));
             highlightLabels.add(unitHighlight);
         }

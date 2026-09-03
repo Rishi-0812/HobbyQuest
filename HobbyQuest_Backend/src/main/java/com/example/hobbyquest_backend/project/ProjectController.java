@@ -27,7 +27,11 @@ public class ProjectController {
 
     @PostMapping("/projects")
     public ResponseEntity<?> create(@RequestBody CustomProjectRequest request, @AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(projectService.createCustomProject(request, currentUser.getId()));
+        try {
+            return ResponseEntity.ok(projectService.createCustomProject(request, currentUser.getId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @GetMapping("/user/projects/{progressId}/active")

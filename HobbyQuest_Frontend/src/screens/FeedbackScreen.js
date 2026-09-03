@@ -12,6 +12,7 @@ import { PrimaryButton } from '../components/components';
 import api from '../services/api';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 import { pickOrCaptureImage } from '../services/imagePicker';
+import SlideToast from '../components/SlideToast';
 
 const MESSAGE_PLACEHOLDER = {
   bug: 'Tell us what happened or what would help.',
@@ -28,6 +29,7 @@ export default function FeedbackScreen({ navigation, route }) {
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   // Suggestion: hobby name is the essential field, message is optional detail.
   // Bug/other: message is the essential content, since there's no hobby field.
@@ -61,10 +63,15 @@ export default function FeedbackScreen({ navigation, route }) {
         message: message.trim() || (type === 'suggestion' ? `Suggested hobby: ${hobbyName}` : ''),
         imageUrl: uploadedUrl,
       });
-      setStatus('Feedback sent. Thank you.');
+      setToast('Feedback submitted successfully');
+      setStatus('');
       setMessage('');
       setHobbyName('');
       setImageUri(null);
+      setTimeout(() => {
+        setToast(null);
+        navigation.navigate('Dashboard');
+      }, 1200);
     } catch (err) {
       setUploading(false);
       setStatus(err.response?.data?.message || err.message || 'Could not send feedback.');
@@ -76,6 +83,7 @@ export default function FeedbackScreen({ navigation, route }) {
   return (
     <SafeAreaView style={layout.root}>
       <StatusBar barStyle="light-content" backgroundColor={C.primaryContainer} />
+      <SlideToast visible={!!toast} message={toast || ''} emoji="✅" color={C.primaryContainer} />
       <View style={header.navy}>
         <TouchableOpacity onPress={() => navigation.goBack()}><Text style={header.backLink}>Back</Text></TouchableOpacity>
         <Text style={header.titleLarge}>Send Feedback</Text>

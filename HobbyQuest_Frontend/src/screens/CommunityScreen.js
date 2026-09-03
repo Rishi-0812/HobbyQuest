@@ -3,7 +3,7 @@
 // Layout: navy header, horizontal-scrolling hobby filter chips, post feed.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, F, R, SHADOW } from '../theme';
 import { layout, header, badge } from '../styles';
@@ -27,9 +27,11 @@ function timeAgo(iso) {
   return `${days}d ago`;
 }
 
-function PostCard({ post }) {
+function PostCard({ post, onOpenImage, onOpenText }) {
   const accent = post.hobbyId ? getHobbyAccent(post.hobbyId) : C.primaryContainer;
   const initial = (post.posterName || 'H').charAt(0).toUpperCase();
+  const previewText = post.postText ? post.postText.trim() : '';
+
   return (
     <View style={s.card}>
       <View style={s.cardHeader}>
@@ -47,7 +49,20 @@ function PostCard({ post }) {
       </View>
 
       {post.imageUrl ? (
-        <Image source={{ uri: post.imageUrl }} style={s.image} resizeMode="cover" />
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onOpenImage(post.imageUrl)}>
+          <Image source={{ uri: post.imageUrl }} style={s.image} resizeMode="cover" />
+        </TouchableOpacity>
+      ) : null}
+
+      {previewText ? (
+        <View style={s.textPreviewWrap}>
+          <Text style={s.previewText} numberOfLines={5}>{previewText}</Text>
+          {previewText.length > 150 ? (
+            <TouchableOpacity onPress={() => onOpenText(previewText)}>
+              <Text style={s.readMore}>Read more</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       ) : null}
 
       {post.caption ? <Text style={s.caption}>{post.caption}</Text> : null}
@@ -60,6 +75,8 @@ export default function CommunityScreen({ navigation }) {
   const [selectedHobby, setSelectedHobby] = useState(null); // null = All
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [textPost, setTextPost] = useState(null);
 
   useEffect(() => {
     api.get('/hobbies').then(({ data }) => setHobbies(Array.isArray(data) ? data : [])).catch(() => {});
@@ -118,10 +135,25 @@ export default function CommunityScreen({ navigation }) {
               <Text style={s.emptyText}>No posts yet in this filter — finish a roadmap or project to be the first to share.</Text>
             </View>
           ) : (
-            posts.map(post => <PostCard key={post.id} post={post} />)
+            posts.map(post => <PostCard key={post.id} post={post} onOpenImage={setPreviewImage} onOpenText={setTextPost} />)
           )}
         </ScrollView>
       )}
+
+      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
+        <TouchableOpacity style={s.imageOverlay} activeOpacity={1} onPress={() => setPreviewImage(null)}>
+          {previewImage ? <Image source={{ uri: previewImage }} style={s.fullImage} resizeMode="contain" /> : null}
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={!!textPost} transparent animationType="fade" onRequestClose={() => setTextPost(null)}>
+        <TouchableOpacity style={s.textOverlay} activeOpacity={1} onPress={() => setTextPost(null)}>
+          <View style={s.textModal}>
+            <Text style={s.textModalTitle}>Reading view</Text>
+            <Text style={s.textModalBody}>{textPost || ''}</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -157,7 +189,16 @@ const s = StyleSheet.create({
   metaLine: { fontSize: F.xs, color: C.onSurfaceVariant, marginTop: 1 },
   time: { fontSize: F.xs, color: C.outline },
   image: { width: '100%', height: 200, borderRadius: R.lg, marginBottom: 10, backgroundColor: C.surfaceContainerLow },
+  textPreviewWrap: { backgroundColor: C.surfaceContainerLow, borderRadius: R.lg, padding: 12, marginBottom: 10 },
+  previewText: { fontSize: F.sm, color: C.onSurface, lineHeight: 20 },
+  readMore: { marginTop: 8, color: C.primaryContainer, fontWeight: '800' },
   caption: { fontSize: F.sm, color: C.onSurface, lineHeight: 19 },
+  imageOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  fullImage: { width: '100%', height: '70%', borderRadius: 18, backgroundColor: C.surfaceContainerLow },
+  textOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  textModal: { width: '100%', maxWidth: 520, backgroundColor: C.surfaceLowest, borderRadius: 24, padding: 22, maxHeight: '80%' },
+  textModalTitle: { fontSize: F.lg, fontWeight: '800', color: C.onSurface, marginBottom: 12 },
+  textModalBody: { fontSize: F.base, lineHeight: 26, color: C.onSurface },
 
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 },
   emptyEmoji: { fontSize: 40, marginBottom: 10 },
