@@ -164,7 +164,7 @@ public class ProjectService {
                 .findByProjectIdAndUnitNumber(project.getId(), progress.getCurrentCount() + 1)
                 .map(unit -> unit.getCreativePrompt() != null && !unit.getCreativePrompt().isBlank()
                         ? unit.getCreativePrompt() : unit.getName())
-                .orElse(null);
+                .orElse("Complete unit " + (progress.getCurrentCount() + 1) + " of " + project.getTargetCount());
 
         String nextPrompt = null;
         if (progress.getCurrentCount() + 2 <= project.getTargetCount()) {
@@ -172,7 +172,7 @@ public class ProjectService {
                     .findByProjectIdAndUnitNumber(project.getId(), progress.getCurrentCount() + 2)
                     .map(unit -> unit.getCreativePrompt() != null && !unit.getCreativePrompt().isBlank()
                             ? unit.getCreativePrompt() : unit.getName())
-                    .orElse(null);
+                    .orElse("Complete unit " + (progress.getCurrentCount() + 2) + " of " + project.getTargetCount());
         }
 
         Boolean isOverdue = null;

@@ -24,6 +24,8 @@ export default function VibePickerModal({
   progressId,
   skillName,
   unitLabel,
+  currentCount = 0,
+  targetCount = 0,
   currentPrompt, // the prompt for the 1st unit that would be marked
   nextPrompt,    // the prompt for the 2nd unit that would be marked (may be null near project end)
   onClose,
@@ -40,8 +42,9 @@ export default function VibePickerModal({
   const isPassion = !!progressId;
   const VIBES = useMemo(() => buildVibes(isPassion), [isPassion]);
 
+  const remainingUnits = Math.max(0, targetCount - currentCount);
   const maxUnits = progressId
-    ? (nextPrompt ? MAX_UNITS_PER_SESSION : (currentPrompt ? 1 : 0))
+    ? Math.min(MAX_UNITS_PER_SESSION, remainingUnits)
     : 0;
 
   useEffect(() => {
@@ -100,8 +103,12 @@ export default function VibePickerModal({
   }
 
   const ticked = [];
-  if (completedUnits >= 1 && currentPrompt) ticked.push(currentPrompt);
-  if (completedUnits >= 2 && nextPrompt) ticked.push(nextPrompt);
+  if (completedUnits >= 1) {
+    ticked.push(currentPrompt || `Complete unit ${currentCount + 1} of ${targetCount}`);
+  }
+  if (completedUnits >= 2) {
+    ticked.push(nextPrompt || `Complete unit ${currentCount + 2} of ${targetCount}`);
+  }
 
   return (
     <Modal

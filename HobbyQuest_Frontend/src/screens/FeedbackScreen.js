@@ -70,7 +70,7 @@ export default function FeedbackScreen({ navigation, route }) {
       setImageUri(null);
       setTimeout(() => {
         setToast(null);
-        navigation.navigate('Dashboard');
+        navigation.navigate('AppTabs', { screen: 'Dashboard' });
       }, 1200);
     } catch (err) {
       setUploading(false);

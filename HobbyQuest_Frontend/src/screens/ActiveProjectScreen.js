@@ -294,6 +294,8 @@ export default function ActiveProjectScreen({ route, navigation }) {
         progressId={params.progressId}
         skillName={active?.projectName ?? params.projectName}
         unitLabel={unitLabel}
+        currentCount={currentCount}
+        targetCount={targetCount}
         currentPrompt={active?.currentPrompt}
         nextPrompt={active?.nextPrompt}
         onClose={() => setModalVisible(false)}
